@@ -1,4 +1,8 @@
 import unittest
+from pathlib import Path
+import tempfile
+from unittest.mock import patch
+import release
 from release import app_version, check_version, changelog_entry
 
 
@@ -24,6 +28,45 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual('- New feature.', changelog_entry(text, '0.11.0'))
         self.assertEqual('- Old feature.', changelog_entry(text, '0.10.2'))
         self.assertEqual('', changelog_entry(text, '0.10.3'))
+
+
+class ReleasePlanTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        root = Path(self.directory.name)
+        self.patch = patch.object(release, 'ROOT', root)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+        (root / 'app').mkdir()
+        release.run('git', 'init', '-b', 'main')
+        release.run('git', 'config', 'user.name', 'Release test')
+        release.run('git', 'config', 'user.email', 'test@example.invalid')
+        self.commit('0.10.2', 12)
+
+    def commit(self, version, code):
+        (release.ROOT / 'app/build.gradle').write_text(f"versionName '{version}'\nversionCode {code}\n")
+        release.run('git', 'add', '.')
+        release.run('git', 'commit', '--allow-empty', '-m', 'Test version')
+
+    def test_initial_release_and_retry_then_ordinary_push(self):
+        self.assertTrue(release.plan()['release'])
+        release.run('git', 'tag', 'v0.10.2')
+        self.assertTrue(release.plan()['release'])
+        self.commit('0.10.2', 12)
+        self.assertFalse(release.plan()['release'])
+
+    def test_version_bump_creates_another_release(self):
+        release.run('git', 'tag', 'v0.10.2')
+        self.commit('0.10.3', 13)
+        self.assertTrue(release.plan()['release'])
+        self.assertEqual('v0.10.3', release.plan()['tag'])
+
+    def test_code_only_bump_cannot_reuse_tag(self):
+        release.run('git', 'tag', 'v0.10.2')
+        self.commit('0.10.2', 13)
+        with self.assertRaises(ValueError):
+            release.plan()
 
 
 if __name__ == '__main__':

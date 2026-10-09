@@ -1,0 +1,17 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+.kotlin/
+.idea/
+*.iml
+*.zip
+*.jks
+*.keystore
+*.pem
+*.p12
+__pycache__/
+.venv/
+dist/
+SHA256SUMS*

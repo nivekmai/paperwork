@@ -7,6 +7,19 @@ from release import app_version, check_version, changelog_entry
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_existing_draft_is_found_across_pages(self):
+        import json
+        draft = {'id': 12, 'tag_name': 'v0.11.0', 'draft': True}
+        with patch.object(release, 'optional_api', return_value=None), patch.object(release, 'run', return_value=json.dumps([[{'tag_name': 'v0.10.2'}], [draft]])):
+            self.assertEqual(draft, release.find_release('repos/example/paperwork', 'v0.11.0'))
+            self.assertIsNone(release.find_release('repos/example/paperwork', 'v0.12.0'))
+
+    def test_published_release_is_left_to_existing_guard(self):
+        published = {'id': 12, 'tag_name': 'v0.11.0', 'draft': False}
+        with patch.object(release, 'optional_api', return_value=published), patch.object(release, 'run') as run:
+            self.assertEqual(published, release.find_release('repos/example/paperwork', 'v0.11.0'))
+            run.assert_not_called()
+
     def test_reads_version(self):
         self.assertEqual(('0.10.2', 12), app_version("versionName '0.10.2'\nversionCode 12"))
 

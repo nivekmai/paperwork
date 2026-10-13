@@ -51,6 +51,12 @@ fun readInk(a: JSONArray): List<List<InkPoint>> = (0 until a.length()).map { i -
 data class Signature(val id: String, val name: String, val strokes: List<List<InkPoint>>, val aspect: Float) {
     fun json() = JSONObject().put("id", id).put("name", name).put("strokes", inkJson(strokes)).put("aspect", aspect)
 }
+data class SavedText(val id: String = UUID.randomUUID().toString(), val label: String, val text: String) {
+    fun json() = JSONObject().put("id",id).put("label",label).put("text",text)
+    companion object {
+        fun from(j: JSONObject) = SavedText(j.getString("id"),j.getString("label"),j.getString("text"))
+    }
+}
 data class Draft(val id: String, val name: String, val pageCount: Int, val marks: List<Mark> = emptyList()) {
     fun json() = JSONObject().put("id", id).put("name", name).put("pageCount", pageCount)
         .put("marks", JSONArray().also { a -> marks.forEach { a.put(it.json()) } })

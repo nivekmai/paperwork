@@ -89,6 +89,15 @@ def optional_api(path):
     raise RuntimeError(result.stderr)
 
 
+def find_release(prefix, tag):
+    # GitHub's release-by-tag endpoint omits drafts, even for an authenticated owner.
+    published = optional_api(f'{prefix}/releases/tags/{tag}')
+    if published is not None:
+        return published
+    pages = json.loads(run('gh', 'api', f'{prefix}/releases?per_page=100', '--paginate', '--slurp'))
+    return next((release for page in pages for release in page if release['tag_name'] == tag), None)
+
+
 def publish():
     # Refresh tags in case another workflow created the release while this build was running.
     run('git', 'fetch', 'origin', '--tags')
@@ -98,7 +107,7 @@ def publish():
         return
     repo = os.environ['GH_REPO']
     prefix = f'repos/{repo}'
-    existing = optional_api(f"{prefix}/releases/tags/{info['tag']}")
+    existing = find_release(prefix, info['tag'])
     if existing and not existing['draft']:
         print('Release is already published; leaving it unchanged.')
         return

@@ -1,10 +1,16 @@
-# Validation — Paperwork 0.10.2
+# Validation — Paperwork 0.11.0
 
 ## Result
 
-`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 56 tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. The shipped APK also passed signature and alignment verification.
+`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 61 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
 
 ## Automated coverage
+
+- Export has a visible text label and outward-arrow icon; the existing save/share screen remains accessible.
+- Text library UI: create a multi-line entry, preserve unfinished form fields across activity recreation, edit, delete, and verify persisted values. Saved-text tests isolate their fixtures.
+- Date and signature-name presets insert editable text, as do saved entries. Zoomed placement stays centered without changing scale; insertion is undoable and persists in the draft. Placed copies survive deletion of saved entries and signatures. Selected PDF text can be saved to the library; later inline edits leave the saved entry unchanged.
+- Saved text round-trips Unicode, line breaks, and intentional whitespace through local storage. Blank values cannot overwrite the library. Date formatting follows the device locale and supplied current date.
+- Nine release-automation tests cover version increments, retries, ordinary pushes, changelog extraction, and finding draft releases across paginated GitHub results to avoid duplicate drafts on retries.
 
 - Page selection: all pages, explicit ranges, user-specified ordering, duplicate/out-of-bounds/malformed input rejection.
 - Rotation transforms: 0/90/180/270 degrees, negative angles, crop-box offsets.

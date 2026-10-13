@@ -62,6 +62,9 @@ private val Green=Color(0xff246b5b)
     var signatureScreen by rememberSaveable { mutableStateOf(false) }
     var textEditor by remember { mutableStateOf<Mark?>(null) }
     var shapeMenu by remember { mutableStateOf(false) }
+    var textLibrary by rememberSaveable { mutableStateOf(false) }
+    var saveTextValue by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingTextInput by remember { mutableStateOf<Mark?>(null) }
     var exportScreen by remember { mutableStateOf(false) }
     var deleteDraft by remember { mutableStateOf<Draft?>(null) }
     var pendingExportPath by rememberSaveable { mutableStateOf<String?>(null) }
@@ -86,6 +89,21 @@ private val Green=Color(0xff246b5b)
         val mark=Mark(page=vm.page,kind=kind,color=quickColor,strokeWidth=quickStroke,size=quickTextSize,x=((p?.width ?: 612f)-w)/2,y=((p?.height ?: 792f)-h)/2,width=w,height=h)
         return editor?.canvas?.centerInViewport(mark) ?: mark
     }
+    fun insertText(value: String) {
+        textLibrary=false
+        var mark=fresh("Text").copy(text=value)
+        if(value.isNotEmpty()) {
+            mark=mark.copy(height=maxOf(mark.height,MarkPainter.textLayout(mark).height+2f).coerceAtMost(vm.pageImage!!.height))
+            mark=editor?.canvas?.centerInViewport(mark) ?: mark
+        }
+        vm.add(mark)
+        if(value.isEmpty()) pendingTextInput=mark
+    }
+    LaunchedEffect(textLibrary,pendingTextInput) {
+        if(!textLibrary) pendingTextInput?.let { mark ->
+            vm.beginInlineEdit(mark.id,alreadyRecorded=true); editor?.startEditing(mark); pendingTextInput=null
+        }
+    }
     fun exportAction(pages: List<Int>,share: Boolean) {
         editor?.finishEditing(); doodling=false
         exportScreen=false
@@ -103,7 +121,9 @@ private val Green=Color(0xff246b5b)
             Text(if(signatureScreen) "Saved signatures" else if(exportScreen) "Export PDF" else if(d==null) "Paperwork" else d.name, maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
             Text(if(signatureScreen) "Only on this device" else if(d==null) "Fill. Sign. Send." else "Local draft • saved automatically",fontSize=12.sp,color=Green)
         } },navigationIcon={ if(d!=null || signatureScreen) ToolIcon(EditorIcons.Back,"Back",onClick={ if(editingText) editor?.finishEditing() else if(doodling) doodling=false else if(signatureScreen) signatureScreen=false else if(exportScreen) exportScreen=false else vm.close() },enabled=!vm.busy) },actions={
-            if(d!=null && !signatureScreen && !exportScreen) ToolIcon(EditorIcons.Download,"Export",onClick={ editor?.finishEditing(); doodling=false; exportScreen=true },enabled=!vm.busy)
+            if(d!=null && !signatureScreen && !exportScreen) TextButton(onClick={ editor?.finishEditing(); doodling=false; exportScreen=true },enabled=!vm.busy,modifier=Modifier.semantics { contentDescription="Export" }) {
+                Icon(EditorIcons.Export,null,Modifier.size(20.dp)); Spacer(Modifier.width(6.dp)); Text("Export")
+            }
         }) },
         snackbarHost={ SnackbarHost(snack) }
     ) { padding ->
@@ -124,6 +144,7 @@ private val Green=Color(0xff246b5b)
                         }
                     } }
                     item { OutlinedButton(onClick={signatureScreen=true},modifier=Modifier.fillMaxWidth()) { Text("Manage saved signatures (${vm.signatures.size})") } }
+                    item { OutlinedButton(onClick={textLibrary=true},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.SavedText,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Manage saved text (${vm.savedTexts.size})") } }
                     item { Text("Your drafts",fontSize=20.sp,fontWeight=FontWeight.SemiBold) }
                     if(vm.drafts.isEmpty()) item { Text("Documents you open will appear here. Your original PDFs stay untouched.",color=Color(0xff63716a)) }
                     items(vm.drafts,key={it.id}) { draft ->
@@ -183,6 +204,7 @@ private val Green=Color(0xff246b5b)
                             })
                             if(selected!=null) {
                                 ToolIcon(EditorIcons.Edit,"Edit style",onClick={editor?.finishEditing(); doodling=false; textEditor=selected})
+                                if(selected.kind=="Text" && selected.text.isNotBlank()) ToolIcon(EditorIcons.SavedText,"Save to text library",onClick={editor?.finishEditing(); saveTextValue=selected.text})
                                 ToolIcon(EditorIcons.Copy,"Duplicate",onClick={editor?.finishEditing(); doodling=false; vm.duplicate()})
                                 ToolIcon(EditorIcons.Delete,"Delete",onClick={editor?.finishEditing(); doodling=false; vm.removeSelected()},tint=MaterialTheme.colorScheme.error)
                             }
@@ -194,8 +216,7 @@ private val Green=Color(0xff246b5b)
                             HorizontalDivider()
                             Row(Modifier.fillMaxWidth().padding(10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                                 Button(onClick={
-                                    editor?.finishEditing(); doodling=false; val mark=fresh("Text"); vm.add(mark)
-                                    vm.beginInlineEdit(mark.id,alreadyRecorded=true); editor?.startEditing(mark)
+                                    editor?.finishEditing(); doodling=false; textLibrary=true
                                 },modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp,vertical=10.dp)) {
                                     Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Text,null,Modifier.size(20.dp)); Text("Text",fontSize=12.sp) }
                                 }
@@ -219,6 +240,8 @@ private val Green=Color(0xff246b5b)
             }
         }
     }
+    if(textLibrary) TextLibraryDialog(vm,onDismiss={textLibrary=false},onInsert=if(d==null) null else ::insertText)
+    saveTextValue?.let { value -> SavedTextEditor(initialText=value,onDismiss={saveTextValue=null},onSave={entry -> if(vm.saveText(entry)) { saveTextValue=null; vm.message="Text saved to library" }}) }
     if(shapeMenu) ShapePicker(onDismiss={shapeMenu=false},onPick={kind -> vm.add(fresh(kind)); shapeMenu=false})
     textEditor?.let { mark -> MarkDialog(mark,vm.pageImage!!,onDismiss={textEditor=null},onSave={vm.update(it); textEditor=null}) }
     deleteDraft?.let { draft -> AlertDialog(onDismissRequest={deleteDraft=null},title={Text("Delete local draft?")},text={Text("This removes ${draft.name} and its editable additions from Paperwork. Your original and exported PDFs are kept.")},confirmButton={TextButton(onClick={vm.delete(draft); deleteDraft=null}) { Text("Delete") }},dismissButton={TextButton(onClick={deleteDraft=null}) { Text("Cancel") }}) }

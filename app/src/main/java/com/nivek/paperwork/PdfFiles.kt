@@ -23,6 +23,7 @@ data class PageImage(val bitmap: Bitmap, val width: Float, val height: Float)
 class PdfFiles(private val context: Context) {
     private val root = File(context.filesDir,"documents").apply { mkdirs() }
     private val signaturesFile = File(context.filesDir,"signatures.json")
+    private val savedTextFile = File(context.filesDir,"saved-text.json")
     fun source(d: Draft) = File(root,"${d.id}/source.pdf")
     fun drafts(): List<Draft> = root.listFiles().orEmpty().filter { it.isDirectory }.mapNotNull { dir ->
         runCatching { Draft.from(JSONObject(AtomicFile(File(dir,"draft.json")).openRead().bufferedReader().use { it.readText() })) }.getOrNull()
@@ -66,6 +67,17 @@ class PdfFiles(private val context: Context) {
         return (0 until a.length()).map { val j = a.getJSONObject(it); Signature(j.getString("id"),j.getString("name"),readInk(j.getJSONArray("strokes")),j.getDouble("aspect").toFloat()) }
     }
     fun saveSignatures(s: List<Signature>) { atomic(signaturesFile,JSONArray().also { a -> s.forEach { a.put(it.json()) } }.toString()) }
+    fun savedTexts(): List<SavedText> {
+        val file=AtomicFile(savedTextFile)
+        val text=try { file.openRead().bufferedReader().use { it.readText() } }
+            catch(e: java.io.FileNotFoundException) { if(!savedTextFile.exists()) return emptyList() else throw e }
+        val a=JSONArray(text)
+        return (0 until a.length()).map { SavedText.from(a.getJSONObject(it)) }
+    }
+    fun saveTexts(entries: List<SavedText>) {
+        require(entries.all { it.label.isNotBlank() && it.text.isNotBlank() }) { "Enter a label and text." }
+        atomic(savedTextFile,JSONArray().also { a -> entries.forEach { a.put(it.json()) } }.toString())
+    }
     fun export(d: Draft, pages: List<Int>): File {
         val dir = File(context.cacheDir,"exports").apply { mkdirs() }
         val out = File(dir,"Paperwork-${UUID.randomUUID()}.pdf")

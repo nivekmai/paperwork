@@ -15,6 +15,7 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
     val files = PdfFiles(app)
     var drafts by mutableStateOf(files.drafts()); private set
     var signatures by mutableStateOf(runCatching { files.signatures() }.getOrDefault(emptyList())); private set
+    var savedTexts by mutableStateOf(runCatching { files.savedTexts() }.getOrDefault(emptyList())); private set
     var draft by mutableStateOf<Draft?>(null); private set
     var page by mutableIntStateOf(0); private set
     var pageImage by mutableStateOf<PageImage?>(null); private set
@@ -104,6 +105,14 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
         try { files.saveSignatures(next); signatures=next } catch(e: Exception) { error=e.message }
     }
     fun deleteSignature(s: Signature) { try { val next=signatures-s; files.saveSignatures(next); signatures=next } catch(e: Exception) { error=e.message } }
+    fun saveText(entry: SavedText): Boolean {
+        val clean=entry.copy(label=entry.label.trim())
+        val next=if(savedTexts.any { it.id==entry.id }) savedTexts.map { if(it.id==entry.id) clean else it } else savedTexts+clean
+        return try { files.saveTexts(next); savedTexts=next; true } catch(e: Exception) { error=e.message; false }
+    }
+    fun deleteText(entry: SavedText) {
+        try { val next=savedTexts.filterNot { it.id==entry.id }; files.saveTexts(next); savedTexts=next } catch(e: Exception) { error=e.message }
+    }
     fun export(pages: List<Int>, done: (File) -> Unit) {
         val d=draft ?: return
         task { val file=withContext(Dispatchers.IO) { files.export(d,pages) }; done(file) }

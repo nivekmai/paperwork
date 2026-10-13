@@ -37,6 +37,83 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AppSmokeTest {
     @get:Rule val compose=createAndroidComposeRule<MainActivity>()
+    @org.junit.Before fun clearSavedTextFixtures() {
+        compose.runOnIdle {
+            val vm=ViewModelProvider(compose.activity)[EditorModel::class.java]
+            vm.savedTexts.toList().forEach(vm::deleteText)
+        }
+    }
+    @Test fun savedTextCanBeCreatedEditedAndDeletedFromHome() {
+        compose.onNodeWithText("Manage saved text (0)").performScrollTo().performClick()
+        compose.onNodeWithText("Add saved text").performClick()
+        compose.onNodeWithText("Save text").assertIsNotEnabled()
+        compose.onNode(hasSetTextAction() and hasText("Label")).performTextInput("Address")
+        compose.onNode(hasSetTextAction() and hasText("Text to insert")).performTextInput("123 Example Street\nExample City")
+        compose.activityRule.scenario.recreate()
+        compose.onNode(hasSetTextAction() and hasText("Text to insert")).assertIsDisplayed()
+        compose.onNodeWithText("Save text").performClick()
+        compose.onNodeWithText("123 Example Street\nExample City").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Edit saved text: Address").performScrollTo().performClick()
+        compose.onNode(hasSetTextAction() and hasText("Text to insert")).performTextReplacement("456 Other Street\nUnit 2")
+        compose.onNodeWithText("Save text").performClick()
+        compose.runOnIdle { assertEquals("456 Other Street\nUnit 2",ViewModelProvider(compose.activity)[EditorModel::class.java].files.savedTexts().single().text) }
+        compose.onNodeWithContentDescription("Delete saved text: Address").performScrollTo().performClick()
+        compose.onNodeWithText("Delete").performClick()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithText("Manage saved text (0)").assertIsDisplayed()
+    }
+
+    @Test fun textPresetsInsertAtViewportCenterAndRemainIndependent() {
+        val file=File(compose.activity.cacheDir,"text-presets.pdf")
+        PDDocument().use { doc -> doc.addPage(PDPage()); doc.save(file) }
+        lateinit var vm: EditorModel
+        compose.runOnUiThread {
+            vm=ViewModelProvider(compose.activity)[EditorModel::class.java]
+            vm.saveText(SavedText(label="Address",text="Jordan Example\n123 Example Street\nUnit 2\nExample City\n12345"))
+            vm.saveSignature("Jordan Example",listOf(listOf(InkPoint(0f,0f),InkPoint(1f,1f))),3f)
+            vm.import(Uri.fromFile(file))
+        }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithText("Export").assertIsDisplayed()
+        compose.runOnIdle { pageEditor().canvas.restoreViewport(PageViewport(3f,360f,480f)) }
+        val before=compose.runOnIdle { pageEditor().canvas.viewport()!! }
+        val scale=compose.runOnIdle { pageEditor().canvas.pageScale() }
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Insert Address").performScrollTo().performClick()
+        val placed=vm.draft!!.marks.single()
+        assertEquals("Jordan Example\n123 Example Street\nUnit 2\nExample City\n12345",placed.text)
+        assertTrue(placed.height>=MarkPainter.textLayout(placed).height)
+        assertEquals(before.centerX,placed.x+placed.width/2,.01f)
+        assertEquals(before.centerY,placed.y+placed.height/2,.01f)
+        compose.runOnIdle { assertNull(pageEditor().activeInput); assertEquals(scale,pageEditor().canvas.pageScale(),.001f) }
+        compose.onNodeWithContentDescription("Undo").performClick()
+        assertTrue(vm.draft!!.marks.isEmpty())
+        compose.onNodeWithContentDescription("Redo").performClick()
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Today's date").performClick()
+        assertEquals(currentDateText(),vm.draft!!.marks.last().text)
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Jordan Example").performClick()
+        assertEquals("Text",vm.draft!!.marks.last().kind)
+        assertEquals("Jordan Example",vm.draft!!.marks.last().text)
+        compose.onNodeWithContentDescription("Save to text library").performScrollTo().performClick()
+        compose.onNode(hasSetTextAction() and hasText("Label")).performTextInput("Full name")
+        compose.onNodeWithText("Save text").performClick()
+        compose.runOnIdle {
+            assertEquals("Jordan Example",vm.savedTexts.single { it.label=="Full name" }.text)
+            vm.deleteText(vm.savedTexts.single { it.label=="Address" })
+            vm.deleteSignature(vm.signatures.single())
+            assertEquals(placed.text,vm.draft!!.marks.first().text)
+            assertEquals("Jordan Example",vm.draft!!.marks.last().text)
+            assertEquals(vm.draft,vm.files.drafts().single { it.id==vm.draft!!.id })
+            tapText(vm.draft!!.marks.last())
+            pageEditor().activeInput!!.setText("Jordan A. Example")
+        }
+        compose.onNodeWithContentDescription("Done editing").performClick()
+        assertEquals("Jordan A. Example",vm.draft!!.marks.last().text)
+        assertEquals("Jordan Example",vm.savedTexts.single().text)
+    }
+
     @Test fun exportScreenRenders() {
         var selected: List<Int>?=null
         compose.activity.setContent { PaperworkTheme { ExportOptions(Draft("test","Test",3),{}, {pages,share -> assertFalse(share); selected=pages}) } }
@@ -90,7 +167,7 @@ class AppSmokeTest {
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         assertNull(vm.error)
         compose.onNodeWithText("Page 1 / 1").assertIsDisplayed()
-        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Text").performClick(); compose.onNodeWithText("Blank text").performClick()
         compose.runOnIdle { pageEditor().activeInput!!.setText("Hello, Paperwork!") }
         compose.onNodeWithContentDescription("Done editing").performClick()
         assertEquals("Hello, Paperwork!",vm.draft!!.marks.single().text)
@@ -135,7 +212,7 @@ class AppSmokeTest {
         compose.onNodeWithContentDescription("Circle").performClick()
         assertCentered()
         compose.runOnIdle { insertionView=pageEditor().canvas.viewport()!!; insertionScale=pageEditor().canvas.pageScale() }
-        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Text").performClick(); compose.onNodeWithText("Blank text").performClick()
         assertCentered()
         compose.onNodeWithContentDescription("Done editing").performClick()
         compose.runOnIdle { vm.saveSignature("Initials",listOf(listOf(InkPoint(0f,0f),InkPoint(1f,1f))),3f) }
@@ -188,7 +265,7 @@ class AppSmokeTest {
         compose.onNodeWithContentDescription("Nudge right").assertDoesNotExist()
         compose.onNodeWithContentDescription("Fit page").assertDoesNotExist()
         val scale=compose.runOnIdle { pageEditor().canvas.pageScale() }
-        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Text").performClick(); compose.onNodeWithText("Blank text").performClick()
         val input=compose.runOnIdle { pageEditor().activeInput!!.also { it.setText("Hello"); it.setSelection(2) } }
         listOf("Text","Shape","Sign","Doodle").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
         compose.onNodeWithContentDescription("Nudge right").assertDoesNotExist()

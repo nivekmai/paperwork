@@ -8,13 +8,15 @@ A local PDF form-filling app written in Kotlin and Jetpack Compose. Android 8.0 
 
 1. Install the APK on your Android phone. Android may ask you to allow installs from the app opening the APK.
 2. Choose **Open a PDF**, or use **Open with / Share → Paperwork** from your email or file app.
-3. Use **Text**, **Shape**, **Sign**, or **Doodle** to add content. Text opens a keyboard directly on the PDF. For an existing text box, tap once to select it, then tap again to edit it in place. Tap the checkmark to finish. Typing saves automatically and each typing session is one undo step.
+3. Use **Text**, **Shape**, **Sign**, or **Doodle** to add content. **Text** opens a picker: choose **Blank text** to type directly on the PDF, **Today's date**, a name from your signature library, or a saved text entry. For an existing text box, tap once to select it, then tap again to edit it in place. Tap the checkmark to finish. Typing saves automatically and each typing session is one undo step.
 4. Drag a selected addition to move it. Its large lower-right handle scales both dimensions while keeping the current proportions; the four edge handles change just width or height. Circles and squares can become ovals and rectangles. Signature corner resizing preserves proportions too. Pinch to zoom; drag empty space to pan.
 5. The pencil icon opens **Edit style**. Text controls include font, point size, line spacing, text/background colors (including transparency). Resize boxes using their handles on the page. Fonts: sans, serif, monospace, and script. Shapes have stroke width, solid/dashed/dotted stroke style, stroke color, and fill color for closed shapes. Fill stays inside the shape. Squares and rectangles have a **Corner radius** slider, from sharp corners to fully rounded ends; the preview updates as you adjust it. Swatches fill their entire rounded outline, and transparency uses a checkerboard. Custom colors have a saturation/brightness square, hue slider, opacity slider and alpha percentage, and hex input (RRGGBB or RRGGBBAA). The custom picker grows to fit the available screen height, with scrolling retained for large fonts, small screens, and the keyboard. Style dialogs no longer include box dimensions.
 6. **Sign → Draw a new signature** opens the portrait naming form. Choose **Draw in landscape** to see an animated rotate-phone cue before a full-screen finger drawing pad, with Undo, Clear, and Accept in a vertical strip on the right. Accept returns the drawing to the portrait preview; **Save signature** saves it to the library. Back cancels a drawing, and cancelling a redraw keeps the previously accepted drawing. Name and save signatures or initials, insert them into documents, or delete them from the library. Deleting a library signature leaves existing placed copies intact.
 7. **Shape → Line** inserts a line. Drag the head (end handle) freely; snapping engages only within ±2° of a multiple of 45°. The tail (start handle) moves freely. Snapped lines shorten at page edges to preserve their angle. The pencil icon lets you set arrowheads independently at the start and end: None, Open, Triangle, Circle, Diamond, or Bar. Stroke width, color, and solid/dashed/dotted styles also apply. Circle resizing replaces the removed Oval picker option; existing ovals still load.
 8. **Doodle** enters direct drawing mode. Draw on the PDF with one finger; use two fingers to zoom/pan. A tap makes a dot. Each completed stroke saves immediately and joins the current doodle. Undo/redo works stroke by stroke. Tap the checkmark or Doodle again to finish, then move/resize/style the doodle like other additions. Starting a new drawing session creates a separate doodle.
-9. **Export** saves or shares a finished PDF. Leave Pages blank for all pages, or enter a range such as `1, 3-5, 2` to extract and reorder pages. Omit pages to exclude them. The original PDF remains untouched.
+9. The labeled **Export** button (outward arrow) opens save/share options without first downloading anything. Leave Pages blank for all pages, or enter a range such as `1, 3-5, 2` to extract and reorder pages. Omit pages to exclude them. The original PDF remains untouched.
+
+**Saved text:** Use **Manage saved text** on the home screen or **Add saved text** in the Text picker. Give each entry a label (such as Address or Email) and fill in the text, including line breaks. Entries can be edited or deleted. A selected text box also has a **Save to text library** bookmark button in the editing toolbar. Inserting a preset creates an ordinary editable text box at the current viewport center, using the current text size and color. Longer entries get additional height to fit their lines, up to the page height. Dates use the device's current date and locale at insertion time. Existing PDF text does not change when a new day starts, a signature is deleted, or a saved entry is edited/deleted.
 
 New text, shapes, and signatures appear at the center of the current PDF viewport, accounting for pan and zoom and keeping additions on the page. Returning from the signature library preserves the viewport. Newly inserted signatures are capped at 50% of the visible editor width at the current zoom, leaving room for resize handles. Tall signatures also fit within half the viewport height, preserving their proportions. This cap applies only at insertion; you can enlarge them afterward. Style previews stay pinned above the scrolling controls.
 
@@ -31,7 +33,7 @@ Drafts save automatically after each completed edit and during inline typing. In
 ## Privacy and storage
 
 - No account, server, analytics, or INTERNET permission.
-- Imported PDFs, draft data, and signatures live in app-private internal storage.
+- Imported PDFs, draft data, signatures, and saved text live in app-private internal storage.
 - Android cloud backups and device transfer are explicitly excluded. Export copies you need to keep. Uninstalling or clearing app data removes drafts and signatures.
 - System pickers can read or save to a provider you choose, including a cloud-backed provider. Sharing sends the exported document to the app you select.
 - Exports are cached in the app cache for sharing. Android may clear that cache.
@@ -63,6 +65,7 @@ APK output: `app/build/outputs/apk/debug/app-debug.apk`. The packaged APK is deb
 ## Layout
 
 - `MainActivity.kt`: Compose screens, import/export pickers, signature library, style dialogs.
+- `TextLibrary.kt`: reusable text management, date/name insertion, and saved-entry forms.
 - `QuickTools.kt` / `AlignmentGeometry.kt`: quick style trays, nudge bar, placement alignment, and snap feedback state.
 - `ColorPicker.kt`: HSV selection, checkerboard transparency, alpha percentage and hex controls.
 - `RotatePhoneCue.kt` / `SignatureDrawingActivity.kt`: animated portrait cue and landscape signature pad.

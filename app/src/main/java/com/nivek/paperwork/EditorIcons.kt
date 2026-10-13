@@ -40,6 +40,8 @@ object EditorIcons {
     val Check=glyph("Done","M4 12 L9 17 L20 6")
     val Add=glyph("Add","M12 4 V20 M4 12 H20")
     val Download=glyph("Download","M12 3 V16 M7 11 L12 16 L17 11 M4 16 V21 H20 V16")
+    val Export=glyph("Export","M13 3 H4 V21 H20 V13 M12 12 L21 3 M15 3 H21 V9")
+    val SavedText=glyph("Saved text","M5 3 H19 V21 L12 17 L5 21 Z M8 7 H16 M8 11 H14")
     val Share=glyph("Share","M12 16 V3 M7 8 L12 3 L17 8 M6 11 H3 V21 H21 V11 H18")
     val Open=glyph("Open PDF","M3 7 V4 H10 L13 7 H21 V10 M3 7 V21 H19 L22 10 H7 L3 21")
 }

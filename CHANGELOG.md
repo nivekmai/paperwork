@@ -2,6 +2,12 @@
 
 Release drafts automatically include the matching entry here when present, plus a commit log since the previous version. For user-facing notes, add a concise version entry before bumping the app version.
 
+## 0.11.0
+
+- A clearly labeled Export button opens the save/share options.
+- Insert today's date or a name from your signature library as editable text.
+- Save and reuse addresses, contact details, and other text across forms. Add, edit, and delete entries, or save text already placed on a PDF.
+
 ## 0.10.2
 
 Changes since 0.7.0:

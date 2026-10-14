@@ -1,5 +1,6 @@
 package com.nivek.paperwork
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,30 +44,23 @@ fun currentDateText(date: LocalDate=LocalDate.now(),locale: Locale=Locale.getDef
                         item { Button(onClick={onInsert("")},modifier=Modifier.fillMaxWidth()) {
                             Icon(EditorIcons.Text,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Blank text")
                         } }
-                        item { TextInsertCard("Today's date",currentDateText()) { onInsert(currentDateText()) } }
-                        if(vm.signatures.isNotEmpty()) {
-                            item { Text("Names from your signatures",fontWeight=FontWeight.SemiBold) }
-                            items(vm.signatures,key={"signature:${it.id}"}) { signature ->
-                                TextInsertCard(signature.name,"Insert as text") { onInsert(signature.name) }
-                            }
+                        item { OutlinedButton(onClick={onInsert(currentDateText())},modifier=Modifier.fillMaxWidth()) { Text(currentDateText()) } }
+                        items(vm.signatures,key={"signature:${it.id}"}) { signature ->
+                            OutlinedButton(onClick={onInsert(signature.name)},modifier=Modifier.fillMaxWidth()) { Text(signature.name) }
                         }
-                        item { HorizontalDivider(); Spacer(Modifier.height(12.dp)); Text("Saved text",fontWeight=FontWeight.SemiBold) }
                     }
-                    item { Text("Keep details such as your address, email, or phone number ready for any form. Saved only on this device.",fontSize=14.sp) }
                     item { OutlinedButton(onClick={adding=true},modifier=Modifier.fillMaxWidth()) {
                         Icon(EditorIcons.Add,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Add saved text")
                     } }
                     items(vm.savedTexts,key={"text:${it.id}"}) { entry ->
-                        Card(Modifier.fillMaxWidth()) {
+                        Card(Modifier.fillMaxWidth().then(if(onInsert!=null) Modifier.clickable { onInsert(entry.text) } else Modifier)) {
                             Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                                Text(entry.label,fontWeight=FontWeight.SemiBold)
-                                Text(entry.text,maxLines=4,overflow=TextOverflow.Ellipsis)
                                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                                    if(onInsert!=null) TextButton(onClick={onInsert(entry.text)},modifier=Modifier.weight(1f)) { Text("Insert ${entry.label}",maxLines=1,overflow=TextOverflow.Ellipsis) }
-                                    else Spacer(Modifier.weight(1f))
+                                    Text(entry.label,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
                                     ToolIcon(EditorIcons.Edit,"Edit saved text: ${entry.label}",onClick={editingId=entry.id})
                                     ToolIcon(EditorIcons.Delete,"Delete saved text: ${entry.label}",onClick={deletingId=entry.id})
                                 }
+                                Text(entry.text,maxLines=4,overflow=TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -83,18 +77,6 @@ fun currentDateText(date: LocalDate=LocalDate.now(),locale: Locale=Locale.getDef
             text={Text("This removes the saved entry. Text already placed in PDFs is kept.")},
             confirmButton={TextButton(onClick={vm.deleteText(entry); deletingId=null}) { Text("Delete") }},
             dismissButton={TextButton(onClick={deletingId=null}) { Text("Cancel") }})
-    }
-}
-
-@Composable private fun TextInsertCard(title: String,subtitle: String,onClick: ()->Unit) {
-    Card(onClick=onClick,modifier=Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                Text(title,fontWeight=FontWeight.SemiBold)
-                Text(subtitle,fontSize=14.sp)
-            }
-            Icon(EditorIcons.Add,null,Modifier.size(20.dp))
-        }
     }
 }
 

@@ -1,4 +1,4 @@
-# Validation — Paperwork 0.11.0
+# Validation — Paperwork 0.11.1
 
 ## Result
 
@@ -6,7 +6,7 @@
 
 ## Automated coverage
 
-- Export has a visible text label and outward-arrow icon; the existing save/share screen remains accessible.
+- Export has an outward-arrow icon with an accessible label; the existing save/share screen remains accessible.
 - Text library UI: create a multi-line entry, preserve unfinished form fields across activity recreation, edit, delete, and verify persisted values. Saved-text tests isolate their fixtures.
 - Date and signature-name presets insert editable text, as do saved entries. Zoomed placement stays centered without changing scale; insertion is undoable and persists in the draft. Placed copies survive deletion of saved entries and signatures. Selected PDF text can be saved to the library; later inline edits leave the saved entry unchanged.
 - Saved text round-trips Unicode, line breaks, and intentional whitespace through local storage. Blank values cannot overwrite the library. Date formatting follows the device locale and supplied current date.

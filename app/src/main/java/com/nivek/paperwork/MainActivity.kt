@@ -121,9 +121,8 @@ private val Green=Color(0xff246b5b)
             Text(if(signatureScreen) "Saved signatures" else if(exportScreen) "Export PDF" else if(d==null) "Paperwork" else d.name, maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
             Text(if(signatureScreen) "Only on this device" else if(d==null) "Fill. Sign. Send." else "Local draft • saved automatically",fontSize=12.sp,color=Green)
         } },navigationIcon={ if(d!=null || signatureScreen) ToolIcon(EditorIcons.Back,"Back",onClick={ if(editingText) editor?.finishEditing() else if(doodling) doodling=false else if(signatureScreen) signatureScreen=false else if(exportScreen) exportScreen=false else vm.close() },enabled=!vm.busy) },actions={
-            if(d!=null && !signatureScreen && !exportScreen) TextButton(onClick={ editor?.finishEditing(); doodling=false; exportScreen=true },enabled=!vm.busy,modifier=Modifier.semantics { contentDescription="Export" }) {
-                Icon(EditorIcons.Export,null,Modifier.size(20.dp)); Spacer(Modifier.width(6.dp)); Text("Export")
-            }
+            if(d!=null && !signatureScreen && !exportScreen) ToolIcon(EditorIcons.Export,"Export",
+                onClick={ editor?.finishEditing(); doodling=false; exportScreen=true },enabled=!vm.busy)
         }) },
         snackbarHost={ SnackbarHost(snack) }
     ) { padding ->

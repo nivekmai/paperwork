@@ -74,12 +74,12 @@ class AppSmokeTest {
             vm.import(Uri.fromFile(file))
         }
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
-        compose.onNodeWithText("Export").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Export").assertIsDisplayed()
         compose.runOnIdle { pageEditor().canvas.restoreViewport(PageViewport(3f,360f,480f)) }
         val before=compose.runOnIdle { pageEditor().canvas.viewport()!! }
         val scale=compose.runOnIdle { pageEditor().canvas.pageScale() }
         compose.onNodeWithText("Text").performClick()
-        compose.onNodeWithText("Insert Address").performScrollTo().performClick()
+        compose.onNodeWithText("Address").performScrollTo().performClick()
         val placed=vm.draft!!.marks.single()
         assertEquals("Jordan Example\n123 Example Street\nUnit 2\nExample City\n12345",placed.text)
         assertTrue(placed.height>=MarkPainter.textLayout(placed).height)
@@ -90,7 +90,7 @@ class AppSmokeTest {
         assertTrue(vm.draft!!.marks.isEmpty())
         compose.onNodeWithContentDescription("Redo").performClick()
         compose.onNodeWithText("Text").performClick()
-        compose.onNodeWithText("Today's date").performClick()
+        compose.onNodeWithText(currentDateText()).performClick()
         assertEquals(currentDateText(),vm.draft!!.marks.last().text)
         compose.onNodeWithText("Text").performClick()
         compose.onNodeWithText("Jordan Example").performClick()

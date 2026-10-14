@@ -2,6 +2,12 @@
 
 Release drafts automatically include the matching entry here when present, plus a commit log since the previous version. For user-facing notes, add a concise version entry before bumping the app version.
 
+## 0.11.1
+
+- A simpler text picker with date and signature-name buttons, plus saved entries you can tap to insert.
+- More compact saved-text cards with edit and delete beside the title.
+- Export uses only its icon in the toolbar.
+
 ## 0.11.0
 
 - A clearly labeled Export button opens the save/share options.

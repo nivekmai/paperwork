@@ -42,8 +42,8 @@ class PageEditor(context: Context): FrameLayout(context) {
                 return super.onKeyPreIme(keyCode,event)
             }
         }.apply {
-            contentDescription="Edit text on PDF"
-            hint="Type here"
+            contentDescription=context.getString(R.string.edit_pdf_text)
+            hint=context.getString(R.string.type_here)
             setPadding(0,0,0,0); includeFontPadding=false; gravity=Gravity.TOP or Gravity.START
             inputType=InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             imeOptions=EditorInfo.IME_ACTION_DONE

@@ -2,17 +2,17 @@ package com.nivek.paperwork
 
 /** Returns zero-based pages in the requested order. Refuses duplicates and invalid ranges. */
 fun parsePages(input: String, count: Int): List<Int> {
-    require(count > 0) { "This document has no pages." }
+    require(count > 0) { throw UserInputException(R.string.document_no_pages) }
     if (input.isBlank()) return (0 until count).toList()
     val pages = mutableListOf<Int>()
     input.split(',').forEach { token ->
         val s = token.trim()
-        require(s.matches(Regex("[0-9]+(?:\\s*-\\s*[0-9]+)?"))) { "Use pages such as 1, 3-5, 2." }
-        val ends = s.split('-').map { it.trim().toIntOrNull() ?: error("Page number is too large.") }
+        require(s.matches(Regex("[0-9]+(?:\\s*-\\s*[0-9]+)?"))) { throw UserInputException(R.string.page_syntax) }
+        val ends = s.split('-').map { it.trim().toIntOrNull() ?: throw UserInputException(R.string.page_too_large) }
         val start = ends.first(); val end = ends.last()
-        require(start in 1..count && end in 1..count) { "Page numbers must be between 1 and $count." }
-        require(end >= start) { "Use ascending ranges, such as 2-5." }
-        (start..end).forEach { require(it - 1 !in pages) { "Page $it appears more than once." }; pages.add(it - 1) }
+        require(start in 1..count && end in 1..count) { throw UserInputException(R.string.page_bounds,count) }
+        require(end >= start) { throw UserInputException(R.string.ascending_pages) }
+        (start..end).forEach { require(it - 1 !in pages) { throw UserInputException(R.string.duplicate_page,it) }; pages.add(it - 1) }
     }
     return pages
 }

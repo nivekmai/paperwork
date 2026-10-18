@@ -43,6 +43,40 @@ class AppSmokeTest {
             vm.savedTexts.toList().forEach(vm::deleteText)
         }
     }
+    @Test fun backupMenuAndLibraryTransferKeepExistingData() {
+        compose.onNodeWithText("Backup & transfer").performScrollTo().performClick()
+        compose.onNodeWithText("Export signatures & text").assertIsDisplayed()
+        compose.onNodeWithText("Import signatures & text").assertIsDisplayed()
+        compose.onNodeWithText("Close").performScrollTo().performClick()
+        val vm=compose.runOnIdle { ViewModelProvider(compose.activity)[EditorModel::class.java] }
+        val backup=File(compose.activity.cacheDir,"library-transfer.json")
+        compose.runOnIdle {
+            vm.saveText(SavedText(label="Address",text="123 Example Street"))
+            vm.saveSignature("Transfer signature",listOf(listOf(InkPoint(0f,0f),InkPoint(1f,1f))),3f)
+            vm.exportLibrary(Uri.fromFile(backup))
+        }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.runOnIdle {
+            assertNull(vm.error)
+            vm.savedTexts.toList().forEach(vm::deleteText)
+            vm.signatures.toList().forEach(vm::deleteSignature)
+            vm.saveText(SavedText(label="New phone",text="Keep this"))
+            vm.importLibrary(Uri.fromFile(backup))
+        }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.runOnIdle {
+            assertNull(vm.error)
+            assertEquals(setOf("Address","New phone"),vm.savedTexts.map { it.label }.toSet())
+            assertEquals("Transfer signature",vm.signatures.single().name)
+            vm.importLibrary(Uri.fromFile(backup))
+        }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.runOnIdle {
+            assertEquals(2,vm.savedTexts.size); assertEquals(1,vm.signatures.size)
+            vm.signatures.toList().forEach(vm::deleteSignature)
+        }
+    }
+
     @Test fun savedTextCanBeCreatedEditedAndDeletedFromHome() {
         compose.onNodeWithText("Manage saved text (0)").performScrollTo().performClick()
         compose.onNodeWithText("Add saved text").performClick()
@@ -118,7 +152,7 @@ class AppSmokeTest {
         var selected: List<Int>?=null
         compose.activity.setContent { PaperworkTheme { ExportOptions(Draft("test","Test",3),{}, {pages,share -> assertFalse(share); selected=pages}) } }
         compose.onNode(hasSetTextAction()).performTextInput("3, 1")
-        compose.onNodeWithText("2 of 3 pages selected").assertIsDisplayed()
+        compose.onNodeWithText("Selected pages: 2 / 3").assertIsDisplayed()
         compose.onNodeWithText("Save PDF").performClick()
         assertEquals(listOf(2,0),selected)
         compose.onNode(hasSetTextAction()).performTextReplacement("4")

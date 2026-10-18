@@ -69,7 +69,7 @@ class PageCanvas(context: Context): View(context) {
             clampPan(); changedViewport(); return true
         }
     })
-    init { contentDescription="PDF page. Tap to select; tap selected text again to type. Drag to move. Corner keeps proportions; edge handles resize one dimension. Pinch to zoom."; isFocusable=true }
+    init { contentDescription=context.getString(R.string.pdf_page_accessibility); isFocusable=true }
     private fun changedViewport() { invalidate(); onViewportChanged() }
     private val lastPosition=IntArray(2)
     override fun onSizeChanged(w: Int,h: Int,oldw: Int,oldh: Int) {
@@ -270,7 +270,7 @@ class PageCanvas(context: Context): View(context) {
 class SignaturePad(context: Context): View(context) {
     private val strokes=mutableListOf<MutableList<InkPoint>>()
     var onInk: (Boolean)->Unit = {}
-    init { setBackgroundColor(Color.WHITE); contentDescription="Signature drawing pad" }
+    init { setBackgroundColor(Color.WHITE); contentDescription=context.getString(R.string.signature_pad) }
     private var restoredInk: List<List<InkPoint>>?=null
     fun saveDrawing(): String = inkJson(strokes.map { s -> s.map { InkPoint(it.x/width.coerceAtLeast(1),it.y/height.coerceAtLeast(1)) } }).toString()
     fun restoreDrawing(json: String) {
@@ -293,7 +293,7 @@ class SignaturePad(context: Context): View(context) {
     fun undo() { if(strokes.isNotEmpty()) strokes.removeAt(strokes.lastIndex); invalidate(); onInk(strokes.any { it.size>1 }) }
     fun capture(): Pair<List<List<InkPoint>>,Float> {
         val valid=strokes.filter { it.size>1 }; val points=valid.flatten()
-        require(points.isNotEmpty()) { "Draw a signature first." }
+        require(points.isNotEmpty()) { context.getString(R.string.draw_first) }
         val minX=points.minOf { it.x }; val minY=points.minOf { it.y }
         val w=(points.maxOf { it.x }-minX).coerceAtLeast(8f); val h=(points.maxOf { it.y }-minY).coerceAtLeast(8f)
         val pad=5f

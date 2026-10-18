@@ -30,11 +30,17 @@ The Text/Shape/Sign/Doodle row hides while typing, and the bottom gesture-hint l
 
 Drafts save automatically after each completed edit and during inline typing. Install this APK over an earlier version to preserve drafts and signatures; do not uninstall first. Undo/redo supports the last 50 changes during the current editing session. Reopen drafts from the home screen. Draft deletion only removes the app's local copy.
 
+## Moving to a new phone
+
+Update Paperwork on the old phone without uninstalling it. On the home screen, choose **Backup & transfer → Export signatures & text**. Move that JSON file to the new phone, install Paperwork, and choose **Import signatures & text**. Imports preserve existing entries and skip identical copies; changed entries with matching IDs become separate entries. The exported file contains personal text and signature drawings without encryption, so choose a private destination. The portable library format is limited to 8 MB.
+
+Manual library exports do not include PDFs or editable drafts. Android’s supported direct phone-to-phone setup transfer can include those as well as the libraries, but depends on the manufacturer, OS, and transfer settings. Paperwork must be installed with the same package and signing certificate. A sideloaded APK may need to be installed manually. Neither feature can recover data already lost from the old phone.
+
 ## Privacy and storage
 
 - No account, server, analytics, or INTERNET permission.
 - Imported PDFs, draft data, signatures, and saved text live in app-private internal storage.
-- Android cloud backups and device transfer are explicitly excluded. Export copies you need to keep. Uninstalling or clearing app data removes drafts and signatures.
+- Automatic cloud backup is disabled. Direct device transfer can include signatures, saved text, and drafts on supported Android 9+ devices. On Android 8, use manual export/import. Uninstalling or clearing app data removes local data.
 - System pickers can read or save to a provider you choose, including a cloud-backed provider. Sharing sends the exported document to the app you select.
 - Exports are cached in the app cache for sharing. Android may clear that cache.
 
@@ -46,7 +52,7 @@ Drafts save automatically after each completed edit and during inline typing. In
 - Password-protected PDFs are not supported. Drawn signatures are visual marks, not certificate-backed digital signatures; exporting an already digitally signed document can invalidate its existing signature.
 - No PDF merging or page rotation controls in this version. Existing rotated pages are supported; export ranges support extraction, exclusion, and reordering.
 - Single-page preview is capped at 1800 pixels on the longest side. Very large or complex PDFs still depend on device memory and PDF compatibility.
-- English UI; canvas editing is touch-oriented. Full screen-reader canvas editing is not implemented; dimensions are adjusted with canvas handles.
+- English UI with all app-provided text in Android XML resources (see [TRANSLATING.md](TRANSLATING.md)); canvas editing is touch-oriented. Full screen-reader canvas editing is not implemented; dimensions are adjusted with canvas handles.
 
 ## Build
 

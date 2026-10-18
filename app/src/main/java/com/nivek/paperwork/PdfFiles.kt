@@ -24,6 +24,24 @@ class PdfFiles(private val context: Context) {
     private val root = File(context.filesDir,"documents").apply { mkdirs() }
     private val signaturesFile = File(context.filesDir,"signatures.json")
     private val savedTextFile = File(context.filesDir,"saved-text.json")
+    private val restoreJournal=File(context.noBackupFilesDir,"library-restore.json")
+    init { recoverLibraryRestore() }
+    private fun recoverLibraryRestore() {
+        val journal=AtomicFile(restoreJournal)
+        val old=try { journal.openRead().use(LibraryBackup::read) }
+            catch(e: java.io.FileNotFoundException) { if(!restoreJournal.exists()) return else throw e }
+        saveSignatures(old.signatures); saveTexts(old.texts)
+        journal.delete()
+    }
+    fun restoreLibrary(library: LibraryBackup.Library) {
+        // Recover an interrupted import before either library is exposed on startup.
+        val old=java.io.ByteArrayOutputStream().also { LibraryBackup.write(it,signatures(),savedTexts()) }
+        atomic(restoreJournal,old.toString("UTF-8"))
+        try {
+            saveSignatures(library.signatures); saveTexts(library.texts)
+            AtomicFile(restoreJournal).delete()
+        } catch(e: Exception) { recoverLibraryRestore(); throw e }
+    }
     fun source(d: Draft) = File(root,"${d.id}/source.pdf")
     fun drafts(): List<Draft> = root.listFiles().orEmpty().filter { it.isDirectory }.mapNotNull { dir ->
         runCatching { Draft.from(JSONObject(AtomicFile(File(dir,"draft.json")).openRead().bufferedReader().use { it.readText() })) }.getOrNull()
@@ -34,17 +52,17 @@ class PdfFiles(private val context: Context) {
         catch (e: Exception) { a.failWrite(stream); throw e }
     }
     fun save(d: Draft) { atomic(File(root,"${d.id}/draft.json"),d.json().toString()) }
-    fun delete(d: Draft) { check(File(root,d.id).deleteRecursively()) { "Could not delete draft." } }
+    fun delete(d: Draft) { check(File(root,d.id).deleteRecursively()) { throw UserInputException(R.string.delete_draft_failed) } }
     fun import(uri: Uri): Draft {
         val id = UUID.randomUUID().toString(); val dir = File(root,id).apply { mkdirs() }
         try {
-            val name = context.contentResolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use { if(it.moveToFirst()) it.getString(0) else null } ?: "Document.pdf"
+            val name = context.contentResolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use { if(it.moveToFirst()) it.getString(0) else null } ?: context.getString(R.string.default_document)
             val file = File(dir,"source.pdf")
-            context.contentResolver.openInputStream(uri).use { input -> requireNotNull(input) { "Cannot open this PDF." }; file.outputStream().use { input.copyTo(it) } }
+            context.contentResolver.openInputStream(uri).use { input -> requireNotNull(input) { throw UserInputException(R.string.cannot_open_pdf) }; file.outputStream().use { input.copyTo(it) } }
             val count = PDDocument.load(file, MemoryUsageSetting.setupMixed(32L*1024*1024).setTempDir(context.cacheDir)).use { doc ->
-                require(doc.numberOfPages > 0) { "This PDF has no pages." }
-                require(!doc.isEncrypted) { "Password-protected PDFs are not supported yet. Import an unlocked copy." }
-                require(doc.currentAccessPermission.canModify()) { "This PDF does not permit editing." }
+                require(doc.numberOfPages > 0) { throw UserInputException(R.string.pdf_no_pages) }
+                require(!doc.isEncrypted) { throw UserInputException(R.string.encrypted_pdf) }
+                require(doc.currentAccessPermission.canModify()) { throw UserInputException(R.string.pdf_not_editable) }
                 doc.numberOfPages
             }
             val draft = Draft(id,name,count); save(draft); return draft
@@ -75,7 +93,7 @@ class PdfFiles(private val context: Context) {
         return (0 until a.length()).map { SavedText.from(a.getJSONObject(it)) }
     }
     fun saveTexts(entries: List<SavedText>) {
-        require(entries.all { it.label.isNotBlank() && it.text.isNotBlank() }) { "Enter a label and text." }
+        require(entries.all { it.label.isNotBlank() && it.text.isNotBlank() }) { throw UserInputException(R.string.text_fields_required) }
         atomic(savedTextFile,JSONArray().also { a -> entries.forEach { a.put(it.json()) } }.toString())
     }
     fun export(d: Draft, pages: List<Int>): File {

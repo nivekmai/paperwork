@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="file" path="signatures.json" requireFlags="deviceToDeviceTransfer"/>
+    <include domain="file" path="saved-text.json" requireFlags="deviceToDeviceTransfer"/>
+    <include domain="file" path="documents/" requireFlags="deviceToDeviceTransfer"/>
+</full-backup-content>

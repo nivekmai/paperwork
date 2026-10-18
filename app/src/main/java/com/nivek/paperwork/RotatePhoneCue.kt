@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
 @Composable fun RotatePhoneCue(onDismiss: ()->Unit,onReady: ()->Unit) {
+    val strings=localizedResources()
     val rotation=remember { Animatable(0f) }
     val ready by rememberUpdatedState(onReady)
     LaunchedEffect(Unit) {
@@ -27,15 +28,15 @@ import androidx.compose.ui.window.Dialog
     Dialog(onDismissRequest=onDismiss) {
         Surface(shape=RoundedCornerShape(24.dp)) {
             Column(Modifier.padding(28.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                Text("Rotate your phone",style=MaterialTheme.typography.titleLarge)
+                Text(strings.getString(R.string.rotate_phone),style=MaterialTheme.typography.titleLarge)
                 val color=MaterialTheme.colorScheme.primary
                 Canvas(Modifier.size(144.dp).graphicsLayer { rotationZ=rotation.value }) {
                     val w=size.width*.45f; val h=size.height*.8f
                     drawRoundRect(color,Offset((size.width-w)/2,(size.height-h)/2),Size(w,h),CornerRadius(10.dp.toPx()),style=Stroke(3.dp.toPx()))
                     drawLine(color,Offset(size.width*.44f,size.height*.83f),Offset(size.width*.56f,size.height*.83f),3.dp.toPx())
                 }
-                Text("Opening the landscape drawing pad…",style=MaterialTheme.typography.bodyMedium)
-                TextButton(onClick=onDismiss) { Text("Cancel") }
+                Text(strings.getString(R.string.opening_landscape),style=MaterialTheme.typography.bodyMedium)
+                TextButton(onClick=onDismiss) { Text(strings.getString(R.string.cancel)) }
             }
         }
     }

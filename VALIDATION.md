@@ -1,10 +1,14 @@
-# Validation — Paperwork 0.11.1
+# Validation — Paperwork 0.12.0
 
 ## Result
 
-`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 61 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
+`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 73 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
 
 ## Automated coverage
+
+- Portable library export/import: Unicode and multiline text, signature geometry, empty libraries, repeated imports, ID conflicts without overwrites, malformed/unsupported/oversized archives, invalid ink, and interrupted-import recovery. UI coverage opens Backup & transfer and transfers library data through the view model.
+- Android 8 excludes automatic backups; Android 9 legacy rules require direct transfer; Android 12+ allows the libraries and documents only in device transfer while excluding all cloud backup domains. Physical phone-to-phone migration has not been tested.
+- All app-provided text is in XML resources; tests exercise locale-aware numeric formatting and resource-backed validation errors while preserving stable model identifiers. Translation instructions are in TRANSLATING.md.
 
 - Export has an outward-arrow icon with an accessible label; the existing save/share screen remains accessible.
 - Text library UI: create a multi-line entry, preserve unfinished form fields across activity recreation, edit, delete, and verify persisted values. Saved-text tests isolate their fixtures.

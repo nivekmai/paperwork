@@ -29,44 +29,46 @@ private object AboveAnchor: PopupPositionProvider {
         (anchorBounds.top-popupContentSize.height).coerceAtLeast(0))
 }
 @Composable fun QuickStyleBar(color: Int,width: Float,isText: Boolean,allowTransparent: Boolean=true,keepKeyboard: Boolean=false,onColor: (Int)->Unit,onWidth: (Float)->Unit) {
+    val strings=localizedResources()
     var tray by remember { mutableStateOf<String?>(null) }
     var custom by remember { mutableStateOf(false) }
     Box(contentAlignment=Alignment.Center) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-            Box(Modifier.padding(vertical=6.dp)) { Swatch(color,false,"Quick color") { tray=if(tray=="color") null else "color" } }
-            ToolIcon(EditorIcons.Stroke,if(isText) "Quick text size" else "Quick stroke width",onClick={tray=if(tray=="width") null else "width"})
+            Box(Modifier.padding(vertical=6.dp)) { Swatch(color,false,strings.getString(R.string.quick_color)) { tray=if(tray=="color") null else "color" } }
+            ToolIcon(EditorIcons.Stroke,if(isText) strings.getString(R.string.quick_text_size) else strings.getString(R.string.quick_stroke_width),onClick={tray=if(tray=="width") null else "width"})
         }
         if(tray!=null) Popup(popupPositionProvider=AboveAnchor,onDismissRequest={tray=null},properties=PopupProperties(focusable=!keepKeyboard)) {
-            Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant,shadowElevation=6.dp,modifier=Modifier.widthIn(max=360.dp).semantics { contentDescription="Quick picker tray" }) {
+            Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant,shadowElevation=6.dp,modifier=Modifier.widthIn(max=360.dp).semantics { contentDescription=strings.getString(R.string.quick_picker_tray) }) {
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     if(tray=="color") {
                         listOf(0,0xff172c27.toInt(),0xff000000.toInt(),0xff2454b5.toInt(),0xffb42c35.toInt(),0xff246b5b.toInt(),0xffffe49a.toInt(),0xffffffff.toInt()).filter { allowTransparent || it!=0 }.forEach { choice ->
-                            Swatch(choice,color==choice,if(choice==0) "Quick transparent" else "Quick #${colorHex(choice)}") { onColor(choice); tray=null }
+                            Swatch(choice,color==choice,if(choice==0) strings.getString(R.string.quick_transparent) else strings.getString(R.string.quick_hex_color,colorHex(choice))) { onColor(choice); tray=null }
                         }
-                        TextButton(onClick={tray=null;custom=true}) { Text("Custom") }
+                        TextButton(onClick={tray=null;custom=true}) { Text(strings.getString(R.string.custom)) }
                     } else {
                         (if(isText) listOf(10f,12f,16f,20f,24f,32f,48f) else listOf(.5f,1f,2f,3f,5f,8f,12f)).forEach { choice ->
-                            FilterChip(selected=width==choice,onClick={onWidth(choice);tray=null},label={Text("${if(choice%1==0f) choice.toInt().toString() else choice.toString()} pt")})
+                            FilterChip(selected=width==choice,onClick={onWidth(choice);tray=null},label={Text(strings.getString(R.string.point_size,java.text.NumberFormat.getNumberInstance(strings.configuration.locales[0]).format(choice)))})
                         }
                     }
                 }
             }
         }
     }
-    if(custom) CustomColorDialog("Color",color,onDismiss={custom=false},onApply={onColor(it);custom=false},keepKeyboard=keepKeyboard)
+    if(custom) CustomColorDialog(strings.getString(R.string.color),color,onDismiss={custom=false},onApply={onColor(it);custom=false},keepKeyboard=keepKeyboard)
 }
 @Composable fun NudgeBar(selected: Boolean,onNudge: (Float,Float)->Unit) {
+    val strings=localizedResources()
     if(!selected) return
     var step by rememberSaveable { mutableIntStateOf(1) }
     Surface(color=MaterialTheme.colorScheme.surfaceVariant,modifier=Modifier.fillMaxWidth().height(48.dp)) {
         BoxWithConstraints(contentAlignment=Alignment.Center) {
             if(selected) Row(Modifier.horizontalScroll(rememberScrollState()).widthIn(min=maxWidth),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
-                listOf(1,5).forEach { amount -> FilterChip(selected=step==amount,onClick={step=amount},label={Text("$amount px")}) }
-                RepeatNudgeButton(EditorIcons.Left,"Nudge left",onClick={onNudge(-step.toFloat(),0f)})
-                RepeatNudgeButton(EditorIcons.Up,"Nudge up",onClick={onNudge(0f,-step.toFloat())})
-                RepeatNudgeButton(EditorIcons.Down,"Nudge down",onClick={onNudge(0f,step.toFloat())})
-                RepeatNudgeButton(EditorIcons.Right,"Nudge right",onClick={onNudge(step.toFloat(),0f)})
-            } else Text("Select an item to nudge",style=MaterialTheme.typography.labelMedium)
+                listOf(1,5).forEach { amount -> FilterChip(selected=step==amount,onClick={step=amount},label={Text(strings.getString(R.string.pixel_step,amount))}) }
+                RepeatNudgeButton(EditorIcons.Left,strings.getString(R.string.nudge_left),onClick={onNudge(-step.toFloat(),0f)})
+                RepeatNudgeButton(EditorIcons.Up,strings.getString(R.string.nudge_up),onClick={onNudge(0f,-step.toFloat())})
+                RepeatNudgeButton(EditorIcons.Down,strings.getString(R.string.nudge_down),onClick={onNudge(0f,step.toFloat())})
+                RepeatNudgeButton(EditorIcons.Right,strings.getString(R.string.nudge_right),onClick={onNudge(step.toFloat(),0f)})
+            } else Text(strings.getString(R.string.select_to_nudge),style=MaterialTheme.typography.labelMedium)
         }
     }
 }

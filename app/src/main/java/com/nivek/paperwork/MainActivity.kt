@@ -58,7 +58,9 @@ private val Green=Color(0xff246b5b)
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun Paperwork(vm: EditorModel) {
+    val strings=localizedResources()
     val context=LocalContext.current
+    var backupScreen by rememberSaveable { mutableStateOf(false) }
     var signatureScreen by rememberSaveable { mutableStateOf(false) }
     var textEditor by remember { mutableStateOf<Mark?>(null) }
     var shapeMenu by remember { mutableStateOf(false) }
@@ -70,6 +72,8 @@ private val Green=Color(0xff246b5b)
     var pendingExportPath by rememberSaveable { mutableStateOf<String?>(null) }
     val open=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(vm::import) }
     val save=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri -> if(uri!=null) pendingExportPath?.let { vm.copyExport(File(it),uri) } }
+    val saveLibrary=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(vm::exportLibrary) }
+    val restoreLibrary=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(vm::importLibrary) }
     val snack=remember { SnackbarHostState() }
     LaunchedEffect(vm.message) { vm.message?.let { snack.showSnackbar(it); vm.message=null } }
     val d=vm.draft
@@ -111,17 +115,17 @@ private val Green=Color(0xff246b5b)
             if(share) {
                 val uri=FileProvider.getUriForFile(context,"${context.packageName}.files",file)
                 val intent=Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                context.startActivity(Intent.createChooser(intent,"Share filled PDF"))
-            } else { pendingExportPath=file.absolutePath; save.launch(vm.draft!!.name.substringBeforeLast('.')+"-filled.pdf") }
+                context.startActivity(Intent.createChooser(intent,strings.getString(R.string.share_pdf)))
+            } else { pendingExportPath=file.absolutePath; save.launch(strings.getString(R.string.export_filename,vm.draft!!.name.substringBeforeLast('.'))) }
         }
     }
     Scaffold(
         modifier=Modifier.imePadding(),
         topBar={ TopAppBar(title={ Column {
-            Text(if(signatureScreen) "Saved signatures" else if(exportScreen) "Export PDF" else if(d==null) "Paperwork" else d.name, maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
-            Text(if(signatureScreen) "Only on this device" else if(d==null) "Fill. Sign. Send." else "Local draft • saved automatically",fontSize=12.sp,color=Green)
-        } },navigationIcon={ if(d!=null || signatureScreen) ToolIcon(EditorIcons.Back,"Back",onClick={ if(editingText) editor?.finishEditing() else if(doodling) doodling=false else if(signatureScreen) signatureScreen=false else if(exportScreen) exportScreen=false else vm.close() },enabled=!vm.busy) },actions={
-            if(d!=null && !signatureScreen && !exportScreen) ToolIcon(EditorIcons.Export,"Export",
+            Text(if(signatureScreen) strings.getString(R.string.saved_signatures) else if(exportScreen) strings.getString(R.string.export_pdf) else if(d==null) strings.getString(R.string.app_name) else d.name, maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
+            Text(if(signatureScreen) strings.getString(R.string.library_subtitle) else if(d==null) strings.getString(R.string.tagline) else strings.getString(R.string.local_draft),fontSize=12.sp,color=Green)
+        } },navigationIcon={ if(d!=null || signatureScreen) ToolIcon(EditorIcons.Back,strings.getString(R.string.back),onClick={ if(editingText) editor?.finishEditing() else if(doodling) doodling=false else if(signatureScreen) signatureScreen=false else if(exportScreen) exportScreen=false else vm.close() },enabled=!vm.busy) },actions={
+            if(d!=null && !signatureScreen && !exportScreen) ToolIcon(EditorIcons.Export,strings.getString(R.string.export),
                 onClick={ editor?.finishEditing(); doodling=false; exportScreen=true },enabled=!vm.busy)
         }) },
         snackbarHost={ SnackbarHost(snack) }
@@ -137,31 +141,32 @@ private val Green=Color(0xff246b5b)
                 d==null -> LazyColumn(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
                     item { Spacer(Modifier.height(10.dp)); Card(colors=CardDefaults.cardColors(containerColor=Color(0xffe4eee7))) {
                         Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-                            Text("A little less paperwork.",fontSize=28.sp,fontWeight=FontWeight.Bold)
-                            Text("Fill forms, add your signature, and keep just the pages you need. Your files stay on your device.")
-                            Button(onClick={open.launch(arrayOf("application/pdf"))},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Open,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Open a PDF") }
+                            Text(strings.getString(R.string.home_title),fontSize=28.sp,fontWeight=FontWeight.Bold)
+                            Text(strings.getString(R.string.home_intro))
+                            Button(onClick={open.launch(arrayOf("application/pdf"))},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Open,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(strings.getString(R.string.open_pdf)) }
                         }
                     } }
-                    item { OutlinedButton(onClick={signatureScreen=true},modifier=Modifier.fillMaxWidth()) { Text("Manage saved signatures (${vm.signatures.size})") } }
-                    item { OutlinedButton(onClick={textLibrary=true},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.SavedText,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Manage saved text (${vm.savedTexts.size})") } }
-                    item { Text("Your drafts",fontSize=20.sp,fontWeight=FontWeight.SemiBold) }
-                    if(vm.drafts.isEmpty()) item { Text("Documents you open will appear here. Your original PDFs stay untouched.",color=Color(0xff63716a)) }
+                    item { OutlinedButton(onClick={signatureScreen=true},modifier=Modifier.fillMaxWidth()) { Text(strings.getString(R.string.manage_signatures,vm.signatures.size)) } }
+                    item { OutlinedButton(onClick={textLibrary=true},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.SavedText,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(strings.getString(R.string.manage_saved_text,vm.savedTexts.size)) } }
+                    item { OutlinedButton(onClick={backupScreen=true},modifier=Modifier.fillMaxWidth()) { Text(strings.getString(R.string.backup_transfer)) } }
+                    item { Text(strings.getString(R.string.your_drafts),fontSize=20.sp,fontWeight=FontWeight.SemiBold) }
+                    if(vm.drafts.isEmpty()) item { Text(strings.getString(R.string.empty_drafts),color=Color(0xff63716a)) }
                     items(vm.drafts,key={it.id}) { draft ->
                         Card(onClick={vm.open(draft)},modifier=Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) { Text(draft.name,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis); Text("${draft.pageCount} pages · ${draft.marks.size} additions",fontSize=13.sp,color=Color(0xff63716a)) }
-                                ToolIcon(EditorIcons.Delete,"Delete draft",onClick={deleteDraft=draft})
+                                Column(Modifier.weight(1f)) { Text(draft.name,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis); Text(strings.getString(R.string.draft_summary,draft.pageCount,draft.marks.size),fontSize=13.sp,color=Color(0xff63716a)) }
+                                ToolIcon(EditorIcons.Delete,strings.getString(R.string.delete_draft),onClick={deleteDraft=draft})
                             }
                         }
                     }
-                    item { Text("No account. No uploads. Uninstalling the app removes local drafts and signatures.",fontSize=12.sp,color=Color(0xff63716a)); Spacer(Modifier.height(16.dp)) }
+                    item { Text(strings.getString(R.string.home_storage),fontSize=12.sp,color=Color(0xff63716a)); Spacer(Modifier.height(16.dp)) }
                 }
                 else -> Column(Modifier.fillMaxSize()) {
                     Surface(color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                            ToolIcon(EditorIcons.Back,"Previous page",onClick={editor?.finishEditing(); doodling=false; vm.go(vm.page-1)},enabled=vm.page>0 && !vm.busy)
-                            Text("Page ${vm.page+1} / ${d.pageCount}",fontSize=14.sp)
-                            ToolIcon(EditorIcons.Next,"Next page",onClick={editor?.finishEditing(); doodling=false; vm.go(vm.page+1)},enabled=vm.page<d.pageCount-1 && !vm.busy)
+                            ToolIcon(EditorIcons.Back,strings.getString(R.string.previous_page),onClick={editor?.finishEditing(); doodling=false; vm.go(vm.page-1)},enabled=vm.page>0 && !vm.busy)
+                            Text(strings.getString(R.string.page_position,vm.page+1,d.pageCount),fontSize=14.sp)
+                            ToolIcon(EditorIcons.Next,strings.getString(R.string.next_page),onClick={editor?.finishEditing(); doodling=false; vm.go(vm.page+1)},enabled=vm.page<d.pageCount-1 && !vm.busy)
                         }
                     }
                     NudgeBar(selected=selected!=null && !doodling && !keyboardActive) { dx,dy ->
@@ -188,10 +193,10 @@ private val Green=Color(0xff246b5b)
                     Surface(color=MaterialTheme.colorScheme.surfaceVariant,shadowElevation=4.dp,modifier=Modifier.fillMaxWidth()) {
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
                         Row(Modifier.horizontalScroll(rememberScrollState()).widthIn(min=maxWidth).padding(horizontal=8.dp),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
-                            if(editingText) ToolIcon(EditorIcons.Check,"Done editing",onClick={editor?.finishEditing()})
-                            if(doodling) ToolIcon(EditorIcons.Check,"Finish doodle",onClick={doodling=false})
-                            ToolIcon(EditorIcons.Undo,"Undo",onClick={editor?.finishEditing(); vm.undo()},enabled=vm.canUndo)
-                            ToolIcon(EditorIcons.Redo,"Redo",onClick={editor?.finishEditing(); vm.redo()},enabled=vm.canRedo)
+                            if(editingText) ToolIcon(EditorIcons.Check,strings.getString(R.string.done_editing),onClick={editor?.finishEditing()})
+                            if(doodling) ToolIcon(EditorIcons.Check,strings.getString(R.string.finish_doodle),onClick={doodling=false})
+                            ToolIcon(EditorIcons.Undo,strings.getString(R.string.undo),onClick={editor?.finishEditing(); vm.undo()},enabled=vm.canUndo)
+                            ToolIcon(EditorIcons.Redo,strings.getString(R.string.redo),onClick={editor?.finishEditing(); vm.redo()},enabled=vm.canRedo)
                             QuickStyleBar(color=selected?.color ?: quickColor,width=selected?.let { if(it.kind=="Text") it.size else it.strokeWidth } ?: quickStroke,isText=selected?.kind=="Text",allowTransparent=!doodling && selected?.kind!="Doodle",keepKeyboard=keyboardActive,onColor={ color ->
                                 quickColor=color
                                 selected?.let { val changed=it.copy(color=color); if(editor?.applyInlineStyle(changed)!=true) vm.update(changed) }
@@ -202,10 +207,10 @@ private val Green=Color(0xff246b5b)
                                 } else { quickStroke=width; selected?.let { vm.update(it.copy(strokeWidth=width)) } }
                             })
                             if(selected!=null) {
-                                ToolIcon(EditorIcons.Edit,"Edit style",onClick={editor?.finishEditing(); doodling=false; textEditor=selected})
-                                if(selected.kind=="Text" && selected.text.isNotBlank()) ToolIcon(EditorIcons.SavedText,"Save to text library",onClick={editor?.finishEditing(); saveTextValue=selected.text})
-                                ToolIcon(EditorIcons.Copy,"Duplicate",onClick={editor?.finishEditing(); doodling=false; vm.duplicate()})
-                                ToolIcon(EditorIcons.Delete,"Delete",onClick={editor?.finishEditing(); doodling=false; vm.removeSelected()},tint=MaterialTheme.colorScheme.error)
+                                ToolIcon(EditorIcons.Edit,strings.getString(R.string.edit_style),onClick={editor?.finishEditing(); doodling=false; textEditor=selected})
+                                if(selected.kind=="Text" && selected.text.isNotBlank()) ToolIcon(EditorIcons.SavedText,strings.getString(R.string.save_to_library),onClick={editor?.finishEditing(); saveTextValue=selected.text})
+                                ToolIcon(EditorIcons.Copy,strings.getString(R.string.duplicate),onClick={editor?.finishEditing(); doodling=false; vm.duplicate()})
+                                ToolIcon(EditorIcons.Delete,strings.getString(R.string.delete),onClick={editor?.finishEditing(); doodling=false; vm.removeSelected()},tint=MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -217,16 +222,16 @@ private val Green=Color(0xff246b5b)
                                 Button(onClick={
                                     editor?.finishEditing(); doodling=false; textLibrary=true
                                 },modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp,vertical=10.dp)) {
-                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Text,null,Modifier.size(20.dp)); Text("Text",fontSize=12.sp) }
+                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Text,null,Modifier.size(20.dp)); Text(strings.getString(R.string.tool_text),fontSize=12.sp) }
                                 }
                                 OutlinedButton(onClick={editor?.finishEditing(); doodling=false; shapeMenu=true},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp,vertical=10.dp)) {
-                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Shape,null,Modifier.size(20.dp)); Text("Shape",fontSize=12.sp) }
+                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Shape,null,Modifier.size(20.dp)); Text(strings.getString(R.string.tool_shape),fontSize=12.sp) }
                                 }
                                 OutlinedButton(onClick={editor?.finishEditing(); doodling=false; signatureScreen=true},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp,vertical=10.dp)) {
-                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Sign,null,Modifier.size(20.dp)); Text("Sign",fontSize=12.sp) }
+                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Sign,null,Modifier.size(20.dp)); Text(strings.getString(R.string.tool_sign),fontSize=12.sp) }
                                 }
                                 FilledTonalButton(onClick={editor?.finishEditing(); doodling=!doodling; if(doodling) { vm.selected=null; if(android.graphics.Color.alpha(quickColor)==0) quickColor=0xff172c27.toInt() }},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp,vertical=10.dp),colors=ButtonDefaults.filledTonalButtonColors(containerColor=if(doodling) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,contentColor=if(doodling) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)) {
-                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Doodle,null,Modifier.size(20.dp)); Text("Doodle",fontSize=12.sp) }
+                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)) { Icon(EditorIcons.Doodle,null,Modifier.size(20.dp)); Text(strings.getString(R.string.tool_doodle),fontSize=12.sp) }
                                 }
                             }
 
@@ -235,45 +240,48 @@ private val Green=Color(0xff246b5b)
                 }
             }
             if(vm.busy) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.15f)).clickable(enabled=true,onClick={}),contentAlignment=Alignment.Center) {
-                Surface(shape=RoundedCornerShape(18.dp)) { Row(Modifier.padding(24.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) { CircularProgressIndicator(Modifier.size(24.dp)); Text("Working…") } }
+                Surface(shape=RoundedCornerShape(18.dp)) { Row(Modifier.padding(24.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) { CircularProgressIndicator(Modifier.size(24.dp)); Text(strings.getString(R.string.working)) } }
             }
         }
     }
+    if(backupScreen) BackupDialog(onDismiss={backupScreen=false},onExport={backupScreen=false; saveLibrary.launch(strings.getString(R.string.library_filename))},onImport={backupScreen=false; restoreLibrary.launch(arrayOf("application/json","text/plain","application/octet-stream"))})
     if(textLibrary) TextLibraryDialog(vm,onDismiss={textLibrary=false},onInsert=if(d==null) null else ::insertText)
-    saveTextValue?.let { value -> SavedTextEditor(initialText=value,onDismiss={saveTextValue=null},onSave={entry -> if(vm.saveText(entry)) { saveTextValue=null; vm.message="Text saved to library" }}) }
+    saveTextValue?.let { value -> SavedTextEditor(initialText=value,onDismiss={saveTextValue=null},onSave={entry -> if(vm.saveText(entry)) { saveTextValue=null; vm.message=strings.getString(R.string.text_saved) }}) }
     if(shapeMenu) ShapePicker(onDismiss={shapeMenu=false},onPick={kind -> vm.add(fresh(kind)); shapeMenu=false})
     textEditor?.let { mark -> MarkDialog(mark,vm.pageImage!!,onDismiss={textEditor=null},onSave={vm.update(it); textEditor=null}) }
-    deleteDraft?.let { draft -> AlertDialog(onDismissRequest={deleteDraft=null},title={Text("Delete local draft?")},text={Text("This removes ${draft.name} and its editable additions from Paperwork. Your original and exported PDFs are kept.")},confirmButton={TextButton(onClick={vm.delete(draft); deleteDraft=null}) { Text("Delete") }},dismissButton={TextButton(onClick={deleteDraft=null}) { Text("Cancel") }}) }
-    vm.error?.let { error -> AlertDialog(onDismissRequest={vm.error=null},title={Text("Couldn’t complete that")},text={Text(error)},confirmButton={TextButton(onClick={vm.error=null}) { Text("OK") }}) }
+    deleteDraft?.let { draft -> AlertDialog(onDismissRequest={deleteDraft=null},title={Text(strings.getString(R.string.delete_local_draft))},text={Text(strings.getString(R.string.delete_draft_message,draft.name))},confirmButton={TextButton(onClick={vm.delete(draft); deleteDraft=null}) { Text(strings.getString(R.string.delete)) }},dismissButton={TextButton(onClick={deleteDraft=null}) { Text(strings.getString(R.string.cancel)) }}) }
+    vm.error?.let { error -> AlertDialog(onDismissRequest={vm.error=null},title={Text(strings.getString(R.string.operation_failed_title))},text={Text(error)},confirmButton={TextButton(onClick={vm.error=null}) { Text(strings.getString(R.string.ok)) }}) }
 }
 
 @Composable fun ExportOptions(d: Draft,onDismiss: ()->Unit,onExport: (List<Int>,Boolean)->Unit) {
+    val strings=localizedResources()
     var range by remember { mutableStateOf("") }
     val result=remember(range,d.pageCount) { runCatching { parsePages(range,d.pageCount) } }
     Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(18.dp)) {
-        Text("Choose your pages",fontSize=26.sp,fontWeight=FontWeight.SemiBold)
-        Text("Keep all pages, or enter pages in order, such as 1, 3-5, 2.")
-        OutlinedTextField(value=range,onValueChange={range=it},label={Text("Pages (blank = all)")},isError=result.isFailure,singleLine=true,modifier=Modifier.fillMaxWidth())
-        Text(result.fold({"${it.size} of ${d.pageCount} pages selected"},{it.message ?: "Invalid pages"}),fontSize=14.sp,color=if(result.isFailure) MaterialTheme.colorScheme.error else Green)
-        Text("Exports embed your additions and flatten form fields. Keep the local draft to edit your additions later.",fontSize=14.sp)
-        Button(onClick={onExport(result.getOrThrow(),false)},enabled=result.isSuccess,modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Download,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Save PDF") }
-        OutlinedButton(onClick={onExport(result.getOrThrow(),true)},enabled=result.isSuccess,modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Share,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Share") }
-        TextButton(onClick=onDismiss,modifier=Modifier.align(Alignment.End)) { Text("Cancel") }
+        Text(strings.getString(R.string.choose_pages),fontSize=26.sp,fontWeight=FontWeight.SemiBold)
+        Text(strings.getString(R.string.pages_hint))
+        OutlinedTextField(value=range,onValueChange={range=it},label={Text(strings.getString(R.string.pages_label))},isError=result.isFailure,singleLine=true,modifier=Modifier.fillMaxWidth())
+        Text(result.fold({strings.getString(R.string.selected_pages,it.size,d.pageCount)},{it.userMessage(strings)}),fontSize=14.sp,color=if(result.isFailure) MaterialTheme.colorScheme.error else Green)
+        Text(strings.getString(R.string.export_explainer),fontSize=14.sp)
+        Button(onClick={onExport(result.getOrThrow(),false)},enabled=result.isSuccess,modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Download,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(strings.getString(R.string.save_pdf)) }
+        OutlinedButton(onClick={onExport(result.getOrThrow(),true)},enabled=result.isSuccess,modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Share,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(strings.getString(R.string.share)) }
+        TextButton(onClick=onDismiss,modifier=Modifier.align(Alignment.End)) { Text(strings.getString(R.string.cancel)) }
     }
 }
 
 @Composable fun ShapePicker(onDismiss: ()->Unit,onPick: (String)->Unit) {
+    val strings=localizedResources()
     Dialog(onDismissRequest=onDismiss) {
         Surface(shape=RoundedCornerShape(24.dp)) {
             Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
-                    ToolIcon(EditorIcons.Back,"Back",onClick=onDismiss)
-                    Text("Insert a shape",fontSize=22.sp,fontWeight=FontWeight.SemiBold)
+                    ToolIcon(EditorIcons.Back,strings.getString(R.string.back),onClick=onDismiss)
+                    Text(strings.getString(R.string.insert_shape),fontSize=22.sp,fontWeight=FontWeight.SemiBold)
                 }
                 listOf("Circle","Square","Line","Check","X").chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                         row.forEach { kind ->
-                            Surface(onClick={onPick(kind)},modifier=Modifier.weight(1f).aspectRatio(1f).semantics { contentDescription=kind },shape=RoundedCornerShape(14.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
+                            Surface(onClick={onPick(kind)},modifier=Modifier.weight(1f).aspectRatio(1f).semantics { contentDescription=strings.optionLabel(kind) },shape=RoundedCornerShape(14.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
                                 Canvas(Modifier.fillMaxSize().padding(18.dp)) {
                                     drawIntoCanvas { c ->
                                         val h=size.height
@@ -291,16 +299,17 @@ private val Green=Color(0xff246b5b)
 }
 
 @Composable fun ArrowheadPicker(label: String,value: String,start: Boolean,onChange: (String)->Unit) {
+    val strings=localizedResources()
     Text(label,fontWeight=FontWeight.Medium)
     arrowheadStyles.chunked(3).forEach { row ->
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             row.forEach { style ->
-                Surface(onClick={onChange(style)},modifier=Modifier.weight(1f).semantics { contentDescription="$label: $style" },shape=RoundedCornerShape(10.dp),color=if(value==style) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,border=if(value==style) BorderStroke(2.dp,Green) else null) {
+                Surface(onClick={onChange(style)},modifier=Modifier.weight(1f).semantics { contentDescription=strings.getString(R.string.labeled_value,label,strings.optionLabel(style)) },shape=RoundedCornerShape(10.dp),color=if(value==style) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,border=if(value==style) BorderStroke(2.dp,Green) else null) {
                     Column(Modifier.padding(6.dp),horizontalAlignment=Alignment.CenterHorizontally) {
                         Canvas(Modifier.fillMaxWidth().height(28.dp)) {
                             drawIntoCanvas { c -> MarkPainter.draw(c.nativeCanvas,Mark(kind="Line",x=4f,y=0f,width=size.width-8,height=size.height,strokeWidth=2f,startArrow=if(start) style else "None",endArrow=if(start) "None" else style)) }
                         }
-                        Text(style,fontSize=11.sp)
+                        Text(strings.optionLabel(style),fontSize=11.sp)
                     }
                 }
             }
@@ -309,52 +318,53 @@ private val Green=Color(0xff246b5b)
 }
 
 @Composable fun MarkDialog(initial: Mark,page: PageImage,onDismiss: ()->Unit,onSave: (Mark)->Unit) {
+    val strings=localizedResources()
     var m by remember { mutableStateOf(initial) }
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxWidth().padding(16.dp).heightIn(max=740.dp),shape=RoundedCornerShape(24.dp)) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
-                    ToolIcon(EditorIcons.Back,"Back",onClick=onDismiss)
-                    Text(if(m.kind=="Text") "Text style" else "${m.kind} style",fontSize=22.sp,fontWeight=FontWeight.SemiBold)
+                    ToolIcon(EditorIcons.Back,strings.getString(R.string.back),onClick=onDismiss)
+                    Text(strings.getString(R.string.mark_style,strings.optionLabel(m.kind)),fontSize=22.sp,fontWeight=FontWeight.SemiBold)
                 }
-                Text("Preview",fontSize=12.sp,color=Green)
-                MarkPreview(m,Modifier.fillMaxWidth().height(100.dp).semantics { contentDescription="Style preview" })
+                Text(strings.getString(R.string.preview),fontSize=12.sp,color=Green)
+                MarkPreview(m,Modifier.fillMaxWidth().height(100.dp).semantics { contentDescription=strings.getString(R.string.style_preview) })
                 Spacer(Modifier.height(10.dp))
                 HorizontalDivider()
                 Column(Modifier.weight(1f,false).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     if(m.kind=="Text") {
-                        Row(Modifier.horizontalScroll(rememberScrollState())) { listOf("sans-serif" to "Sans","serif" to "Serif","monospace" to "Mono","cursive" to "Script").forEach { (value,label) -> FilterChip(selected=m.font==value,onClick={m=m.copy(font=value)},label={Text(label)},modifier=Modifier.padding(end=6.dp)) } }
-                        Text("Font size: ${m.size.toInt()} pt")
+                        Row(Modifier.horizontalScroll(rememberScrollState())) { listOf("sans-serif" to strings.getString(R.string.font_sans),"serif" to strings.getString(R.string.font_serif),"monospace" to strings.getString(R.string.font_mono),"cursive" to strings.getString(R.string.font_script)).forEach { (value,label) -> FilterChip(selected=m.font==value,onClick={m=m.copy(font=value)},label={Text(label)},modifier=Modifier.padding(end=6.dp)) } }
+                        Text(strings.getString(R.string.font_size_value,m.size.toInt()))
                         Slider(value=m.size,onValueChange={m=m.copy(size=it)},valueRange=8f..64f)
-                        Text("Line spacing: ${"%.1f".format(m.spacing)}×")
+                        Text(strings.getString(R.string.line_spacing_value,m.spacing))
                         Slider(value=m.spacing,onValueChange={m=m.copy(spacing=it)},valueRange=1f..2.5f)
-                        ColorPicker("Text color",m.color,false) { m=m.copy(color=it) }
-                        ColorPicker("Background",m.background,true) { m=m.copy(background=it) }
+                        ColorPicker(strings.getString(R.string.text_color),m.color,false) { m=m.copy(color=it) }
+                        ColorPicker(strings.getString(R.string.background),m.background,true) { m=m.copy(background=it) }
                     } else {
-                        Text("Stroke width: ${"%.1f".format(m.strokeWidth)} pt")
-                        Slider(value=m.strokeWidth.coerceIn(.5f,12f),onValueChange={m=m.copy(strokeWidth=it)},valueRange=.5f..12f,modifier=Modifier.semantics { contentDescription="Stroke width" })
+                        Text(strings.getString(R.string.stroke_width_value,m.strokeWidth))
+                        Slider(value=m.strokeWidth.coerceIn(.5f,12f),onValueChange={m=m.copy(strokeWidth=it)},valueRange=.5f..12f,modifier=Modifier.semantics { contentDescription=strings.getString(R.string.stroke_width) })
                         if(m.isShape) Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                            listOf("Solid","Dashed","Dotted").forEach { style -> FilterChip(selected=m.strokeStyle==style,onClick={m=m.copy(strokeStyle=style)},label={Text(style)}) }
+                            listOf("Solid","Dashed","Dotted").forEach { style -> FilterChip(selected=m.strokeStyle==style,onClick={m=m.copy(strokeStyle=style)},label={Text(strings.optionLabel(style))}) }
                         }
                         if(m.kind=="Square") {
                             val maxRadius=min(m.width,m.height)/2
                             val radius=m.cornerRadius.coerceIn(0f,maxRadius)
-                            Text("Corner radius: ${"%.1f".format(radius)} pt")
-                            Slider(value=radius,onValueChange={m=m.copy(cornerRadius=it)},valueRange=0f..maxRadius,modifier=Modifier.semantics { contentDescription="Corner radius" })
+                            Text(strings.getString(R.string.corner_radius_value,radius))
+                            Slider(value=radius,onValueChange={m=m.copy(cornerRadius=it)},valueRange=0f..maxRadius,modifier=Modifier.semantics { contentDescription=strings.getString(R.string.corner_radius) })
                         }
-                        ColorPicker("Stroke color",m.color,true) { m=m.copy(color=it) }
-                        if(m.isClosedShape) ColorPicker("Fill color",m.fill,true) { m=m.copy(fill=it) }
+                        ColorPicker(strings.getString(R.string.stroke_color),m.color,true) { m=m.copy(color=it) }
+                        if(m.isClosedShape) ColorPicker(strings.getString(R.string.fill_color),m.fill,true) { m=m.copy(fill=it) }
                         if(m.kind=="Line") {
-                            ArrowheadPicker("Start arrowhead",m.startArrow,true) { m=m.copy(startArrow=it) }
-                            ArrowheadPicker("End arrowhead",m.endArrow,false) { m=m.copy(endArrow=it) }
-                            Text("Drag the line's endpoint handles on the page to change its length and direction.",fontSize=12.sp)
+                            ArrowheadPicker(strings.getString(R.string.start_arrowhead),m.startArrow,true) { m=m.copy(startArrow=it) }
+                            ArrowheadPicker(strings.getString(R.string.end_arrowhead),m.endArrow,false) { m=m.copy(endArrow=it) }
+                            Text(strings.getString(R.string.line_hint),fontSize=12.sp)
                         }
                     }
-                    if(m.kind=="Text") Text("To change the text, select its box on the page and tap it again.",fontSize=12.sp)
+                    if(m.kind=="Text") Text(strings.getString(R.string.edit_text_hint),fontSize=12.sp)
                 }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
-                    TextButton(onClick=onDismiss) { Text("Cancel") }
-                    Button(onClick={onSave(m)}) { Icon(EditorIcons.Check,null,Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Apply") }
+                    TextButton(onClick=onDismiss) { Text(strings.getString(R.string.cancel)) }
+                    Button(onClick={onSave(m)}) { Icon(EditorIcons.Check,null,Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(strings.getString(R.string.apply)) }
                 }
             }
         }
@@ -371,27 +381,29 @@ private val Green=Color(0xff246b5b)
 }
 
 @Composable fun SignatureLibrary(vm: EditorModel,onInsert: ((Signature)->Unit)?) {
+    val strings=localizedResources()
     var drawing by rememberSaveable { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Signature?>(null) }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-        item { Button(onClick={drawing=true},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Add,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Draw a new signature") } }
-        if(vm.signatures.isEmpty()) item { Text("Save a signature or your initials once, then reuse them on any document.") }
+        item { Button(onClick={drawing=true},modifier=Modifier.fillMaxWidth()) { Icon(EditorIcons.Add,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(strings.getString(R.string.draw_new_signature)) } }
+        if(vm.signatures.isEmpty()) item { Text(strings.getString(R.string.signature_intro)) }
         items(vm.signatures,key={it.id}) { s ->
             Card { Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Text(s.name,fontWeight=FontWeight.SemiBold)
                 MarkPreview(Mark(kind="Signature",width=200f,height=200f/s.aspect,strokes=s.strokes,size=12f),Modifier.fillMaxWidth().height(90.dp))
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
-                    ToolIcon(EditorIcons.Delete,"Delete signature",onClick={deleting=s})
-                    if(onInsert!=null) Button(onClick={onInsert(s)}) { Text("Insert") }
+                    ToolIcon(EditorIcons.Delete,strings.getString(R.string.delete_signature),onClick={deleting=s})
+                    if(onInsert!=null) Button(onClick={onInsert(s)}) { Text(strings.getString(R.string.insert)) }
                 }
             } }
         }
-        item { Text("Signatures have transparent backgrounds. Removing a saved signature does not remove copies already placed in drafts.",fontSize=12.sp,color=Color(0xff63716a)) }
+        item { Text(strings.getString(R.string.signature_footer),fontSize=12.sp,color=Color(0xff63716a)) }
     }
     if(drawing) SignatureDialog(onDismiss={drawing=false},onSave={name,strokes,aspect -> vm.saveSignature(name,strokes,aspect); drawing=false})
-    deleting?.let { s -> AlertDialog(onDismissRequest={deleting=null},title={Text("Delete ${s.name}?")},text={Text("This removes it from your signature library.")},confirmButton={TextButton(onClick={vm.deleteSignature(s); deleting=null}) { Text("Delete") }},dismissButton={TextButton(onClick={deleting=null}) { Text("Cancel") }}) }
+    deleting?.let { s -> AlertDialog(onDismissRequest={deleting=null},title={Text(strings.getString(R.string.delete_named,s.name))},text={Text(strings.getString(R.string.delete_signature_message))},confirmButton={TextButton(onClick={vm.deleteSignature(s); deleting=null}) { Text(strings.getString(R.string.delete)) }},dismissButton={TextButton(onClick={deleting=null}) { Text(strings.getString(R.string.cancel)) }}) }
 }
 @Composable fun SignatureDialog(onDismiss: ()->Unit,onSave: (String,List<List<InkPoint>>,Float)->Unit) {
+    val strings=localizedResources()
     var name by rememberSaveable { mutableStateOf("") }
     var acceptedDrawing by rememberSaveable { mutableStateOf<String?>(null) }
     val context=LocalContext.current
@@ -413,16 +425,16 @@ private val Green=Color(0xff246b5b)
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxWidth().padding(12.dp),shape=RoundedCornerShape(24.dp)) {
             Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                Text("Draw your signature",fontSize=22.sp,fontWeight=FontWeight.SemiBold)
-                OutlinedTextField(value=name,onValueChange={name=it},label={Text("Name, e.g. Full signature or Initials")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+                Text(strings.getString(R.string.draw_signature),fontSize=22.sp,fontWeight=FontWeight.SemiBold)
+                OutlinedTextField(value=name,onValueChange={name=it},label={Text(strings.getString(R.string.signature_name))},modifier=Modifier.fillMaxWidth(),singleLine=true)
                 if(drawing!=null) MarkPreview(Mark(kind="Signature",width=200f,height=200f/drawing.getDouble("aspect").toFloat(),strokes=readInk(drawing.getJSONArray("strokes"))),Modifier.fillMaxWidth().height(140.dp))
-                else Text("Draw in landscape for more room, then return here to name and save your signature.")
+                else Text(strings.getString(R.string.landscape_hint))
                 OutlinedButton(onClick={ rotateCue=true },modifier=Modifier.fillMaxWidth()) {
-                    Icon(EditorIcons.Sign,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(if(drawing==null) "Draw in landscape" else "Redraw in landscape")
+                    Icon(EditorIcons.Sign,null,Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(if(drawing==null) strings.getString(R.string.draw_landscape) else strings.getString(R.string.redraw_landscape))
                 }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
-                    TextButton(onClick=onDismiss) { Text("Cancel") }
-                    Button(onClick={drawing?.let { onSave(name,readInk(it.getJSONArray("strokes")),it.getDouble("aspect").toFloat()) }},enabled=drawing!=null) { Text("Save signature") }
+                    TextButton(onClick=onDismiss) { Text(strings.getString(R.string.cancel)) }
+                    Button(onClick={drawing?.let { onSave(name,readInk(it.getJSONArray("strokes")),it.getDouble("aspect").toFloat()) }},enabled=drawing!=null) { Text(strings.getString(R.string.save_signature)) }
                 }
             }
         }

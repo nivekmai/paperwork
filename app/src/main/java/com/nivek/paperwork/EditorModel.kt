@@ -12,6 +12,7 @@ import java.io.File
 import java.util.UUID
 
 class EditorModel(app: Application) : AndroidViewModel(app) {
+    private val strings get() = getApplication<Application>().resources
     val files = PdfFiles(app)
     var drafts by mutableStateOf(files.drafts()); private set
     var signatures by mutableStateOf(runCatching { files.signatures() }.getOrDefault(emptyList())); private set
@@ -42,7 +43,7 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
             files.save(next)
             if(!inlineHasCheckpoint) { undo.addLast(d.marks); if(undo.size>50) undo.removeFirst(); inlineHasCheckpoint=true }
             redo.clear(); draft=next; historyState()
-        } catch(e: Exception) { error="Draft was not saved: ${e.message}" }
+        } catch(e: Exception) { error=strings.getString(R.string.draft_not_saved) }
     }
     private val undo = ArrayDeque<List<Mark>>()
     private val redo = ArrayDeque<List<Mark>>()
@@ -51,7 +52,7 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
         if (busy) return
         busy = true
         viewModelScope.launch {
-            try { block() } catch(e: Exception) { error = e.message ?: "Unable to complete this operation." }
+            try { block() } catch(e: Exception) { error = e.userMessage(strings) }
             finally { busy = false }
         }
     }
@@ -81,7 +82,7 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
             files.save(next)
             undo.addLast(d.marks); if(undo.size>50) undo.removeFirst()
             redo.clear(); draft = next; historyState()
-        } catch(e: Exception) { error = "Draft was not saved: ${e.message}" }
+        } catch(e: Exception) { error = strings.getString(R.string.draft_not_saved) }
     }
     fun update(m: Mark) { commit(draft!!.marks.map { if(it.id==m.id) m else it }) }
     fun add(m: Mark) { commit(draft!!.marks + m); selected=m.id }
@@ -97,21 +98,41 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
         endInlineEdit()
         val d = draft ?: return; if(from.isEmpty()) return
         try { val next = d.copy(marks=from.last()); files.save(next); from.removeLast(); to.addLast(d.marks); draft=next; selected=null; historyState() }
-        catch(e: Exception) { error="Draft was not saved: ${e.message}" }
+        catch(e: Exception) { error=strings.getString(R.string.draft_not_saved) }
     }
-    fun delete(d: Draft) { try { files.delete(d); drafts=files.drafts() } catch(e: Exception) { error=e.message } }
+    fun delete(d: Draft) { try { files.delete(d); drafts=files.drafts() } catch(e: Exception) { error=e.userMessage(strings) } }
     fun saveSignature(name: String, strokes: List<List<InkPoint>>, aspect: Float) {
-        val next=signatures+Signature(UUID.randomUUID().toString(),name.trim().ifEmpty { "Signature ${signatures.size+1}" },strokes,aspect)
-        try { files.saveSignatures(next); signatures=next } catch(e: Exception) { error=e.message }
+        val next=signatures+Signature(UUID.randomUUID().toString(),name.trim().ifEmpty { strings.getString(R.string.signature_number,signatures.size+1) },strokes,aspect)
+        try { files.saveSignatures(next); signatures=next } catch(e: Exception) { error=e.userMessage(strings) }
     }
-    fun deleteSignature(s: Signature) { try { val next=signatures-s; files.saveSignatures(next); signatures=next } catch(e: Exception) { error=e.message } }
+    fun deleteSignature(s: Signature) { try { val next=signatures-s; files.saveSignatures(next); signatures=next } catch(e: Exception) { error=e.userMessage(strings) } }
     fun saveText(entry: SavedText): Boolean {
         val clean=entry.copy(label=entry.label.trim())
         val next=if(savedTexts.any { it.id==entry.id }) savedTexts.map { if(it.id==entry.id) clean else it } else savedTexts+clean
-        return try { files.saveTexts(next); savedTexts=next; true } catch(e: Exception) { error=e.message; false }
+        return try { files.saveTexts(next); savedTexts=next; true } catch(e: Exception) { error=e.userMessage(strings); false }
     }
     fun deleteText(entry: SavedText) {
-        try { val next=savedTexts.filterNot { it.id==entry.id }; files.saveTexts(next); savedTexts=next } catch(e: Exception) { error=e.message }
+        try { val next=savedTexts.filterNot { it.id==entry.id }; files.saveTexts(next); savedTexts=next } catch(e: Exception) { error=e.userMessage(strings) }
+    }
+    fun exportLibrary(uri: Uri) = task {
+        val library=LibraryBackup.Library(signatures.toList(),savedTexts.toList())
+        withContext(Dispatchers.IO) {
+            // Validate before touching the destination document.
+            val bytes=java.io.ByteArrayOutputStream().also { LibraryBackup.write(it,library.signatures,library.texts) }.toByteArray()
+            (getApplication<Application>().contentResolver.openOutputStream(uri,"wt") ?: throw UserInputException(R.string.cannot_write)).use { it.write(bytes) }
+        }
+        message=strings.getString(R.string.backup_exported)
+    }
+    fun importLibrary(uri: Uri) = task {
+        val before=LibraryBackup.Library(signatures.toList(),savedTexts.toList())
+        val merged=withContext(Dispatchers.IO) {
+            val incoming=(getApplication<Application>().contentResolver.openInputStream(uri) ?: throw UserInputException(R.string.invalid_backup)).use(LibraryBackup::read)
+            val next=LibraryBackup.merge(before,incoming)
+            files.restoreLibrary(next)
+            next
+        }
+        signatures=merged.signatures; savedTexts=merged.texts
+        message=strings.getString(R.string.backup_imported,signatures.size-before.signatures.size,savedTexts.size-before.texts.size)
     }
     fun export(pages: List<Int>, done: (File) -> Unit) {
         val d=draft ?: return
@@ -119,8 +140,8 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
     }
     fun copyExport(file: File, uri: Uri) = task {
         withContext(Dispatchers.IO) {
-            requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri,"wt")) { "Cannot write to this location." }.use { out -> file.inputStream().use { it.copyTo(out) } }
+            (getApplication<Application>().contentResolver.openOutputStream(uri,"wt") ?: throw UserInputException(R.string.cannot_write)).use { out -> file.inputStream().use { it.copyTo(out) } }
         }
-        message="PDF saved"
+        message=strings.getString(R.string.pdf_saved)
     }
 }

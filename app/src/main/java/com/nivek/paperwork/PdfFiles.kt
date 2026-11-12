@@ -19,6 +19,7 @@ import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
 
+data class PageSize(val width: Float,val height: Float)
 data class PageImage(val bitmap: Bitmap, val width: Float, val height: Float)
 class PdfFiles(private val context: Context) {
     private val root = File(context.filesDir,"documents").apply { mkdirs() }
@@ -68,10 +69,17 @@ class PdfFiles(private val context: Context) {
             val draft = Draft(id,name,count); save(draft); return draft
         } catch(e: Exception) { dir.deleteRecursively(); throw e }
     }
-    fun render(d: Draft, index: Int): PageImage {
+    fun pageSizes(d: Draft): List<PageSize> =
+        PDDocument.load(source(d),MemoryUsageSetting.setupMixed(32L*1024*1024).setTempDir(context.cacheDir)).use { doc ->
+            (0 until doc.numberOfPages).map { index ->
+                val page=doc.getPage(index); val box=page.cropBox
+                if(((page.rotation % 180)+180)%180==90) PageSize(box.height,box.width) else PageSize(box.width,box.height)
+            }
+        }
+    fun render(d: Draft, index: Int, maxDimension: Int=1800): PageImage {
         ParcelFileDescriptor.open(source(d),ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
             PdfRenderer(fd).use { renderer -> renderer.openPage(index).use { page ->
-                val scale = minOf(2f,1800f / maxOf(page.width,page.height))
+                val scale = minOf(2f,maxDimension.toFloat() / maxOf(page.width,page.height))
                 val b = Bitmap.createBitmap((page.width*scale).roundToInt().coerceAtLeast(1),(page.height*scale).roundToInt().coerceAtLeast(1),Bitmap.Config.ARGB_8888)
                 b.eraseColor(android.graphics.Color.WHITE)
                 page.render(b,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)

@@ -2,6 +2,11 @@
 
 Release drafts automatically include the matching entry here when present, plus a commit log since the previous version. For user-facing notes, add a concise version entry before bumping the app version.
 
+## 0.13.0
+
+- Browse a PDF in one continuous vertical page list, including your additions.
+- Tap a page to edit it in the focused view. Use Back or All pages to return to your place in the document.
+
 ## 0.12.0
 
 - Export and import saved signatures and text to move them to another phone. Existing entries are preserved and identical copies are skipped.

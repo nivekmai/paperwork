@@ -1,10 +1,13 @@
-# Validation — Paperwork 0.12.0
+# Validation — Paperwork 0.13.0
 
 ## Result
 
-`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 73 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
+`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 75 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
 
 ## Automated coverage
+
+- Continuous page list: tap a later page to edit, retain additions on the selected page, return to the original list position, preserve position across activity recreation, undo/redo after switching views, return to a different page after Next, export from the list, and navigate back home. Existing editing tests now enter through a page preview.
+- Page-list sizing is checked against actual PDF crop boxes and all four rotations. Preview rendering is lazy, limited to two concurrent jobs and a 12 MB cache; focused pages keep the existing renderer.
 
 - Portable library export/import: Unicode and multiline text, signature geometry, empty libraries, repeated imports, ID conflicts without overwrites, malformed/unsupported/oversized archives, invalid ink, and interrupted-import recovery. UI coverage opens Backup & transfer and transfers library data through the view model.
 - Android 8 excludes automatic backups; Android 9 legacy rules require direct transfer; Android 12+ allows the libraries and documents only in device transfer while excluding all cloud backup domains. Physical phone-to-phone migration has not been tested.

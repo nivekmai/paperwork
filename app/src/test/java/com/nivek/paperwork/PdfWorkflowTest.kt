@@ -43,6 +43,10 @@ class PdfWorkflowTest {
         }
         return file
     }
+    @Test fun pageListDimensionsRespectCropBoxesAndRotation() {
+        val draft=files.import(Uri.fromFile(fixture()))
+        assertEquals(listOf(PageSize(600f,800f),PageSize(800f,600f),PageSize(600f,800f),PageSize(800f,600f)),files.pageSizes(draft))
+    }
     @Test fun roundedSquaresPersistAndPaintRoundedFillAndStroke() {
         val mark=Mark(kind="Square",x=0f,y=0f,width=60f,height=40f,cornerRadius=18f,fill=Color.RED,color=Color.BLUE,strokeWidth=2f)
         assertEquals(mark,Mark.from(mark.json()))

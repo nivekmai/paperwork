@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.util.UUID
 
@@ -19,6 +21,29 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
     var savedTexts by mutableStateOf(runCatching { files.savedTexts() }.getOrDefault(emptyList())); private set
     var draft by mutableStateOf<Draft?>(null); private set
     var page by mutableIntStateOf(0); private set
+    var pageFocused by mutableStateOf(false); private set
+    var pageSizes by mutableStateOf<List<PageSize>>(emptyList()); private set
+    private val previewSlots=Semaphore(2)
+    private val previews=object: android.util.LruCache<Int,PageImage>(12*1024*1024) {
+        override fun sizeOf(key: Int,value: PageImage)=value.bitmap.byteCount
+    }
+    suspend fun preview(document: Draft,index: Int): PageImage = withContext(Dispatchers.IO) {
+        previewSlots.withPermit {
+            if(draft?.id==document.id) previews.get(index)?.let { return@withPermit it }
+            val image=files.render(document,index,900)
+            if(draft?.id==document.id) previews.put(index,image)
+            image
+        }
+    }
+    fun showPages() { endInlineEdit(); selected=null; pageFocused=false }
+    fun focusPage(index: Int) {
+        val d=draft ?: return
+        if(index !in 0 until d.pageCount) return
+        task {
+            val image=if(index==page && pageImage!=null) pageImage!! else withContext(Dispatchers.IO) { files.render(d,index) }
+            endInlineEdit(); page=index; pageImage=image; selected=null; pageFocused=true
+        }
+    }
     var pageImage by mutableStateOf<PageImage?>(null); private set
     var selected by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false); private set
@@ -63,11 +88,12 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
     }
     fun open(d: Draft) = task { openInternal(d) }
     private suspend fun openInternal(d: Draft) {
-        val image = withContext(Dispatchers.IO) { files.render(d,0) }
-        endInlineEdit(); draft = d; page = 0; pageImage = image; selected = null
+        val sizes=withContext(Dispatchers.IO) { files.pageSizes(d) }
+        previews.evictAll(); pageSizes=sizes; pageFocused=false
+        endInlineEdit(); draft = d; page = 0; pageImage = null; selected = null
         undo.clear(); redo.clear(); historyState()
     }
-    fun close() { endInlineEdit(); draft = null; pageImage = null; selected = null; drafts = files.drafts() }
+    fun close() { previews.evictAll(); pageSizes=emptyList(); pageFocused=false; endInlineEdit(); draft = null; pageImage = null; selected = null; drafts = files.drafts() }
     fun go(index: Int) {
         val d = draft ?: return
         if(index !in 0 until d.pageCount) return

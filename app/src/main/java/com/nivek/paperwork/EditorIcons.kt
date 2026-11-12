@@ -21,6 +21,7 @@ object EditorIcons {
             addPath(PathParser().parsePathString(path).toNodes(),fill=null,stroke=SolidColor(Color.Black),strokeLineWidth=width,strokeLineCap=StrokeCap.Round)
         }
     }.build()
+    val Pages=glyph("Pages","M5 3 H19 V11 H5 Z M5 15 H19 V23 H5 Z")
     val Up=glyph("Move up","M5 11 L12 4 L19 11 M12 4 V21")
     val Down=glyph("Move down","M5 13 L12 20 L19 13 M12 20 V3")
     val Left=glyph("Move left","M11 5 L4 12 L11 19 M4 12 H21")

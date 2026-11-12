@@ -13,6 +13,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -77,6 +79,9 @@ private val Green=Color(0xff246b5b)
     val snack=remember { SnackbarHostState() }
     LaunchedEffect(vm.message) { vm.message?.let { snack.showSnackbar(it); vm.message=null } }
     val d=vm.draft
+    val pageListState=rememberSaveable(d?.id,saver=LazyListState.Saver) { LazyListState() }
+    var enteredPage by rememberSaveable(d?.id) { mutableIntStateOf(0) }
+    val scope=rememberCoroutineScope()
     val selected=d?.marks?.find { it.id==vm.selected }
     var editor by remember { mutableStateOf<PageEditor?>(null) }
     var editingText by remember { mutableStateOf(false) }
@@ -85,7 +90,20 @@ private val Green=Color(0xff246b5b)
     var quickColor by rememberSaveable { mutableIntStateOf(0xff172c27.toInt()) }
     var quickStroke by rememberSaveable { mutableFloatStateOf(2f) }
     var quickTextSize by rememberSaveable { mutableFloatStateOf(16f) }
-    BackHandler(enabled=(signatureScreen || d!=null) && !vm.busy) { if(editingText) editor?.finishEditing() else if(doodling) doodling=false else if(signatureScreen) signatureScreen=false else if(exportScreen) exportScreen=false else vm.close() }
+    fun showPages() {
+        editor?.finishEditing(); doodling=false
+        if(vm.page!=enteredPage) scope.launch { pageListState.scrollToItem(vm.page) }
+        vm.showPages(); editor=null
+    }
+    fun navigateBack() {
+        if(editingText) editor?.finishEditing()
+        else if(doodling) doodling=false
+        else if(signatureScreen) signatureScreen=false
+        else if(exportScreen) exportScreen=false
+        else if(vm.pageFocused) showPages()
+        else vm.close()
+    }
+    BackHandler(enabled=(signatureScreen || d!=null) && !vm.busy) { navigateBack() }
     fun fresh(kind: String): Mark {
         val p=vm.pageImage
         val w=min(if(kind=="Text") 240f else if(kind=="Line") 160f else 48f,(p?.width ?: 612f)*.75f)
@@ -124,7 +142,8 @@ private val Green=Color(0xff246b5b)
         topBar={ TopAppBar(title={ Column {
             Text(if(signatureScreen) strings.getString(R.string.saved_signatures) else if(exportScreen) strings.getString(R.string.export_pdf) else if(d==null) strings.getString(R.string.app_name) else d.name, maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
             Text(if(signatureScreen) strings.getString(R.string.library_subtitle) else if(d==null) strings.getString(R.string.tagline) else strings.getString(R.string.local_draft),fontSize=12.sp,color=Green)
-        } },navigationIcon={ if(d!=null || signatureScreen) ToolIcon(EditorIcons.Back,strings.getString(R.string.back),onClick={ if(editingText) editor?.finishEditing() else if(doodling) doodling=false else if(signatureScreen) signatureScreen=false else if(exportScreen) exportScreen=false else vm.close() },enabled=!vm.busy) },actions={
+        } },navigationIcon={ if(d!=null || signatureScreen) ToolIcon(EditorIcons.Back,strings.getString(R.string.back),onClick=::navigateBack,enabled=!vm.busy) },actions={
+            if(d!=null && vm.pageFocused && !signatureScreen && !exportScreen) ToolIcon(EditorIcons.Pages,strings.getString(R.string.all_pages),onClick=::showPages,enabled=!vm.busy)
             if(d!=null && !signatureScreen && !exportScreen) ToolIcon(EditorIcons.Export,strings.getString(R.string.export),
                 onClick={ editor?.finishEditing(); doodling=false; exportScreen=true },enabled=!vm.busy)
         }) },
@@ -161,6 +180,7 @@ private val Green=Color(0xff246b5b)
                     }
                     item { Text(strings.getString(R.string.home_storage),fontSize=12.sp,color=Color(0xff63716a)); Spacer(Modifier.height(16.dp)) }
                 }
+                !vm.pageFocused -> DocumentPages(vm,d,pageListState,onPage={ index -> enteredPage=index; vm.focusPage(index) })
                 else -> Column(Modifier.fillMaxSize()) {
                     Surface(color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {

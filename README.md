@@ -36,6 +36,12 @@ Update Paperwork on the old phone without uninstalling it. On the home screen, c
 
 Manual library exports do not include PDFs or editable drafts. Android’s supported direct phone-to-phone setup transfer can include those as well as the libraries, but depends on the manufacturer, OS, and transfer settings. Paperwork must be installed with the same package and signing certificate. A sideloaded APK may need to be installed manually. Neither feature can recover data already lost from the old phone.
 
+## Browsing pages
+
+Documents open as a continuous vertical list. Previews show the original PDF plus your saved additions. Tap a page to enter the focused editor with the existing zoom, tools, and previous/next controls. Back or the **All pages** toolbar icon returns to the same list position; if you changed pages in the editor, the list returns to that page. Back from the list returns home. Export works from either view.
+
+Page dimensions are read before displaying the list, including rotated and cropped pages. Previews render off the UI thread, with at most two simultaneous preview renders and a 12 MB bitmap cache; they do not load every full-resolution page into memory. Focused editing retains its higher-resolution renderer.
+
 ## Privacy and storage
 
 - No account, server, analytics, or INTERNET permission.

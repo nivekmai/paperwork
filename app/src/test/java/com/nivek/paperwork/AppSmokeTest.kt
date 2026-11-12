@@ -3,6 +3,8 @@ package com.nivek.paperwork
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
@@ -77,6 +79,45 @@ class AppSmokeTest {
         }
     }
 
+    @Test fun scrollablePagesOpenFocusedEditingAndReturnToTheSamePlace() {
+        val file=File(compose.activity.cacheDir,"scrollable.pdf")
+        PDDocument().use { doc -> repeat(6) { doc.addPage(PDPage()) }; doc.save(file) }
+        val vm=compose.runOnIdle { ViewModelProvider(compose.activity)[EditorModel::class.java].also { it.import(Uri.fromFile(file)) } }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        val documentId=vm.draft!!.id
+        assertFalse(vm.pageFocused)
+        compose.onNodeWithTag("document-pages").assertIsDisplayed().performScrollToIndex(3)
+        val position=compose.onNodeWithContentDescription("Open page 4").fetchSemanticsNode().boundsInRoot.top
+        compose.onNodeWithContentDescription("Open page 4").performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        assertTrue(vm.pageFocused); assertEquals(3,vm.page)
+        compose.onNodeWithText("Page 4 / 6").assertIsDisplayed()
+        compose.onNodeWithText("Shape").performClick()
+        compose.onNodeWithContentDescription("Square").performClick()
+        assertEquals(3,vm.draft!!.marks.single().page)
+        compose.onNodeWithContentDescription("All pages").performClick()
+        assertFalse(vm.pageFocused)
+        assertEquals(position,compose.onNodeWithContentDescription("Open page 4").fetchSemanticsNode().boundsInRoot.top,.1f)
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithContentDescription("Open page 4").assertIsDisplayed().performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Undo").performClick()
+        assertTrue(vm.draft!!.marks.isEmpty())
+        compose.onNodeWithContentDescription("Redo").performClick()
+        compose.onNodeWithContentDescription("Next page").performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithText("Page 5 / 6").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithContentDescription("Open page 5").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Export").performClick()
+        compose.onNodeWithText("Export PDF").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithTag("document-pages").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithText("Your drafts").assertIsDisplayed()
+        assertEquals(3,vm.files.drafts().single { it.id==documentId }.marks.single().page)
+    }
+
     @Test fun savedTextCanBeCreatedEditedAndDeletedFromHome() {
         compose.onNodeWithText("Manage saved text (0)").performScrollTo().performClick()
         compose.onNodeWithText("Add saved text").performClick()
@@ -107,6 +148,8 @@ class AppSmokeTest {
             vm.saveSignature("Jordan Example",listOf(listOf(InkPoint(0f,0f),InkPoint(1f,1f))),3f)
             vm.import(Uri.fromFile(file))
         }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         compose.onNodeWithContentDescription("Export").assertIsDisplayed()
         compose.runOnIdle { pageEditor().canvas.restoreViewport(PageViewport(3f,360f,480f)) }
@@ -199,6 +242,8 @@ class AppSmokeTest {
         lateinit var vm: EditorModel
         compose.runOnUiThread { vm=ViewModelProvider(compose.activity)[EditorModel::class.java]; vm.import(Uri.fromFile(file)) }
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         assertNull(vm.error)
         compose.onNodeWithText("Page 1 / 1").assertIsDisplayed()
         compose.onNodeWithText("Text").performClick(); compose.onNodeWithText("Blank text").performClick()
@@ -231,6 +276,8 @@ class AppSmokeTest {
         PDDocument().use { doc -> doc.addPage(PDPage()); doc.save(file) }
         lateinit var vm: EditorModel
         compose.runOnUiThread { vm=ViewModelProvider(compose.activity)[EditorModel::class.java]; vm.import(Uri.fromFile(file)) }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         val view=PageViewport(3f,360f,480f)
         compose.runOnIdle { pageEditor().canvas.restoreViewport(view) }
@@ -268,6 +315,8 @@ class AppSmokeTest {
         lateinit var vm: EditorModel
         compose.runOnUiThread { vm=ViewModelProvider(compose.activity)[EditorModel::class.java]; vm.import(Uri.fromFile(file)) }
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         compose.onNodeWithText("Shape").performClick(); compose.onNodeWithContentDescription("Square").performClick()
         compose.onNodeWithContentDescription("Quick color").performClick()
         compose.onNodeWithContentDescription("Quick picker tray").assertIsDisplayed()
@@ -295,6 +344,8 @@ class AppSmokeTest {
         PDDocument().use { doc -> doc.addPage(PDPage()); doc.save(file) }
         lateinit var vm: EditorModel
         compose.runOnUiThread { vm=ViewModelProvider(compose.activity)[EditorModel::class.java]; vm.import(Uri.fromFile(file)) }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         compose.onNodeWithContentDescription("Nudge right").assertDoesNotExist()
         compose.onNodeWithContentDescription("Fit page").assertDoesNotExist()
@@ -347,6 +398,8 @@ class AppSmokeTest {
         lateinit var vm: EditorModel
         compose.runOnUiThread { vm=ViewModelProvider(compose.activity)[EditorModel::class.java]; vm.import(Uri.fromFile(file)) }
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         compose.onNodeWithText("Shape").performClick()
         compose.onNodeWithContentDescription("Circle").performClick()
         val oldHeight=vm.draft!!.marks.single().height
@@ -371,6 +424,8 @@ class AppSmokeTest {
         PDDocument().use { doc -> doc.addPage(PDPage()); doc.save(file) }
         lateinit var vm: EditorModel
         compose.runOnUiThread { vm=ViewModelProvider(compose.activity)[EditorModel::class.java]; vm.import(Uri.fromFile(file)) }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        compose.onNodeWithContentDescription("Open page 1").performClick()
         compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
         compose.onNodeWithText("Shape").performClick()
         compose.onNodeWithContentDescription("Oval").assertDoesNotExist()

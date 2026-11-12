@@ -196,4 +196,8 @@
     <string name="working">Working…</string>
     <string name="your_drafts">Your drafts</string>
     <string name="library_filename" translatable="false">Paperwork-library.json</string>
+    <string name="all_pages">All pages</string>
+    <string name="open_page">Open page %1$d</string>
+    <string name="page_preview_failed">Could not load this page preview.</string>
+    <string name="retry">Retry</string>
 </resources>

@@ -4,6 +4,11 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
@@ -77,6 +82,42 @@ class AppSmokeTest {
             assertEquals(2,vm.savedTexts.size); assertEquals(1,vm.signatures.size)
             vm.signatures.toList().forEach(vm::deleteSignature)
         }
+    }
+
+    @Test fun scrollingListPinchesWithoutOpeningAPageAndRemembersZoom() {
+        val file=File(compose.activity.cacheDir,"pinch-pages.pdf")
+        PDDocument().use { doc -> repeat(4) { doc.addPage(PDPage()) }; doc.save(file) }
+        val vm=compose.runOnIdle { ViewModelProvider(compose.activity)[EditorModel::class.java].also { it.import(Uri.fromFile(file)) } }
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        val viewport=compose.onNodeWithTag("document-zoom")
+        viewport.performTouchInput {
+            down(0,Offset(center.x-40f,center.y)); down(1,Offset(center.x+40f,center.y))
+            updatePointerTo(0,Offset(center.x-80f,center.y)); updatePointerTo(1,Offset(center.x+80f,center.y)); move()
+            up(1); moveTo(0,Offset(center.x-75f,center.y+4f)); up(0)
+        }
+        compose.runOnIdle { assertFalse(vm.pageFocused) }
+        assertEquals("Zoom: 200%",viewport.fetchSemanticsNode().config[SemanticsProperties.StateDescription])
+        val pageBefore=compose.onNodeWithContentDescription("Open page 1").getUnclippedBoundsInRoot()
+        viewport.performTouchInput { swipe(start=Offset(center.x,center.y),end=Offset(center.x+70f,center.y),durationMillis=300) }
+        val pageAfter=compose.onNodeWithContentDescription("Open page 1").getUnclippedBoundsInRoot()
+        assertTrue(pageAfter.left>pageBefore.left)
+        viewport.performTouchInput { swipe(start=Offset(center.x,center.y),end=Offset(center.x,center.y-80f),durationMillis=300) }
+        assertTrue(compose.onNodeWithContentDescription("Open page 1").getUnclippedBoundsInRoot().top<pageAfter.top)
+        compose.onNodeWithContentDescription("Open page 1").performClick()
+        compose.waitUntil(20_000) { Shadows.shadowOf(Looper.getMainLooper()).idle(); !vm.busy }
+        assertTrue(vm.pageFocused)
+        compose.onNodeWithContentDescription("All pages").performClick()
+        assertEquals("Zoom: 200%",viewport.fetchSemanticsNode().config[SemanticsProperties.StateDescription])
+        compose.activityRule.scenario.recreate()
+        assertEquals("Zoom: 200%",viewport.fetchSemanticsNode().config[SemanticsProperties.StateDescription])
+        compose.onNodeWithTag("document-pages").performScrollToIndex(3)
+        compose.onNodeWithTag("document-pages").performSemanticsAction(SemanticsActions.ScrollBy) { it(0f,10000f) }
+        val last=compose.onNodeWithContentDescription("Open page 4").fetchSemanticsNode()
+        val coordinates=last.layoutInfo.coordinates
+        val bottom=coordinates.localToRoot(Offset(0f,coordinates.size.height.toFloat())).y
+        val bounds=viewport.fetchSemanticsNode().boundsInRoot
+        assertTrue("Last page bottom $bottom; viewport $bounds",bottom<=bounds.bottom && bottom>(bounds.top+bounds.bottom)/2)
+        compose.runOnIdle { assertFalse(vm.pageFocused) }
     }
 
     @Test fun scrollablePagesOpenFocusedEditingAndReturnToTheSamePlace() {

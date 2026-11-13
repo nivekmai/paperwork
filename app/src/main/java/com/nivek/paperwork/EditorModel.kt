@@ -24,14 +24,15 @@ class EditorModel(app: Application) : AndroidViewModel(app) {
     var pageFocused by mutableStateOf(false); private set
     var pageSizes by mutableStateOf<List<PageSize>>(emptyList()); private set
     private val previewSlots=Semaphore(2)
-    private val previews=object: android.util.LruCache<Int,PageImage>(12*1024*1024) {
-        override fun sizeOf(key: Int,value: PageImage)=value.bitmap.byteCount
+    private val previews=object: android.util.LruCache<String,PageImage>(12*1024*1024) {
+        override fun sizeOf(key: String,value: PageImage)=value.bitmap.byteCount
     }
-    suspend fun preview(document: Draft,index: Int): PageImage = withContext(Dispatchers.IO) {
+    suspend fun preview(document: Draft,index: Int,detail: Int=900): PageImage = withContext(Dispatchers.IO) {
         previewSlots.withPermit {
-            if(draft?.id==document.id) previews.get(index)?.let { return@withPermit it }
-            val image=files.render(document,index,900)
-            if(draft?.id==document.id) previews.put(index,image)
+            val key="$index:$detail"
+            if(draft?.id==document.id) previews.get(key)?.let { return@withPermit it }
+            val image=files.render(document,index,detail)
+            if(draft?.id==document.id) previews.put(key,image)
             image
         }
     }

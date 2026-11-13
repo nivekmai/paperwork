@@ -80,6 +80,7 @@ private val Green=Color(0xff246b5b)
     LaunchedEffect(vm.message) { vm.message?.let { snack.showSnackbar(it); vm.message=null } }
     val d=vm.draft
     val pageListState=rememberSaveable(d?.id,saver=LazyListState.Saver) { LazyListState() }
+    val documentZoom=rememberSaveable(d?.id,saver=DocumentZoom.Saver) { DocumentZoom() }
     var enteredPage by rememberSaveable(d?.id) { mutableIntStateOf(0) }
     val scope=rememberCoroutineScope()
     val selected=d?.marks?.find { it.id==vm.selected }
@@ -180,7 +181,7 @@ private val Green=Color(0xff246b5b)
                     }
                     item { Text(strings.getString(R.string.home_storage),fontSize=12.sp,color=Color(0xff63716a)); Spacer(Modifier.height(16.dp)) }
                 }
-                !vm.pageFocused -> DocumentPages(vm,d,pageListState,onPage={ index -> enteredPage=index; vm.focusPage(index) })
+                !vm.pageFocused -> DocumentPages(vm,d,pageListState,documentZoom,onPage={ index -> enteredPage=index; vm.focusPage(index) })
                 else -> Column(Modifier.fillMaxSize()) {
                     Surface(color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {

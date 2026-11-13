@@ -200,4 +200,7 @@
     <string name="open_page">Open page %1$d</string>
     <string name="page_preview_failed">Could not load this page preview.</string>
     <string name="retry">Retry</string>
+    <string name="document_zoom_percent">Zoom: %1$d%%</string>
+    <string name="zoom_in">Zoom in</string>
+    <string name="zoom_out">Zoom out</string>
 </resources>

@@ -2,6 +2,11 @@
 
 Release drafts automatically include the matching entry here when present, plus a commit log since the previous version. For user-facing notes, add a concise version entry before bumping the app version.
 
+## 0.14.0
+
+- Pinch to zoom in the scrolling page list, with sideways panning and sharper enlarged previews.
+- List zoom is retained when switching to focused editing and back.
+
 ## 0.13.0
 
 - Browse a PDF in one continuous vertical page list, including your additions.

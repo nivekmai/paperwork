@@ -1,10 +1,12 @@
-# Validation — Paperwork 0.13.0
+# Validation — Paperwork 0.14.0
 
 ## Result
 
-`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 75 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
+`assembleDebug`, `testDebugUnitTest`, and `lintDebug` all completed successfully. All 79 Android tests passed. Lint reported no errors; remaining warnings concern dependency/tool updates, bundled library code, and drawing/style recommendations. GitHub CI additionally builds and lints the release variant, independently renders the exported PDF fixtures, and verifies the signed release APK.
 
 ## Automated coverage
+
+- Scrolling-list zoom: injected two-finger gestures, horizontal panning, vertical scrolling while enlarged, no accidental page opening after a pinch, zoom retention through focused editing and activity recreation, and reaching the bottom of the final page. Geometry tests cover the pinch anchor, 1–4× limits, and pan bounds after resizing. Physical-device gesture feel remains unverified.
 
 - Continuous page list: tap a later page to edit, retain additions on the selected page, return to the original list position, preserve position across activity recreation, undo/redo after switching views, return to a different page after Next, export from the list, and navigate back home. Existing editing tests now enter through a page preview.
 - Page-list sizing is checked against actual PDF crop boxes and all four rotations. Preview rendering is lazy, limited to two concurrent jobs and a 12 MB cache; focused pages keep the existing renderer.

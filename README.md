@@ -38,9 +38,9 @@ Manual library exports do not include PDFs or editable drafts. Android’s suppo
 
 ## Browsing pages
 
-Documents open as a continuous vertical list. Previews show the original PDF plus your saved additions. Tap a page to enter the focused editor with the existing zoom, tools, and previous/next controls. Back or the **All pages** toolbar icon returns to the same list position; if you changed pages in the editor, the list returns to that page. Back from the list returns home. Export works from either view.
+Documents open as a continuous vertical list. Previews show the original PDF plus your saved additions. Pinch to zoom from 1× to 4×, scroll vertically, and drag sideways to pan when enlarged. The list remembers its zoom and horizontal position when you return from focused editing or rotate the phone. Tap a page to enter the focused editor with the existing zoom, tools, and previous/next controls. Back or the **All pages** toolbar icon returns to the same list position; if you changed pages in the editor, the list returns to that page. Back from the list returns home. Export works from either view.
 
-Page dimensions are read before displaying the list, including rotated and cropped pages. Previews render off the UI thread, with at most two simultaneous preview renders and a 12 MB bitmap cache; they do not load every full-resolution page into memory. Focused editing retains its higher-resolution renderer.
+Page dimensions are read before displaying the list, including rotated and cropped pages. Previews render off the UI thread, upgrade to higher resolution when enlarged, and use at most two simultaneous renders and a 12 MB bitmap cache; they do not load every full-resolution page into memory. Focused editing retains its higher-resolution renderer.
 
 ## Privacy and storage
 
